@@ -14,21 +14,27 @@ function DecksPage() {
     nome: '', 
     descricao: '', 
     formato: 'TCG', 
-    corTema: '#4b0082' 
+    corTema: '#0028B3' 
   });
 
   const [filtroNome, setFiltroNome] = useState('');
   const [filtroFormato, setFiltroFormato] = useState('Todos');
 
   const CORES_DISPONIVEIS = [
-    { nome: 'Trevas', hex: '#4b0082' },
-    { nome: 'Luz', hex: '#f1c40f' },
-    { nome: 'Fogo', hex: '#e74c3c' },
-    { nome: 'Água', hex: '#3498db' },
-    { nome: 'Vento', hex: '#2ecc71' },
-    { nome: 'Terra', hex: '#a0522d' },
-    { nome: 'Divino', hex: '#ff8c00' }
+    { nome: 'Azul', hex: '#0028B3', hue: 220 },
+    { nome: 'Luz', hex: '#f1c40f', hue: 45 },
+    { nome: 'Fogo', hex: '#e74c3c', hue: 0 },
+    { nome: 'Água', hex: '#3498db', hue: 200 },
+    { nome: 'Vento', hex: '#2ecc71', hue: 140 },
+    { nome: 'Terra', hex: '#a0522d', hue: 30 },
+    { nome: 'Divino', hex: '#ff8c00', hue: 30 }
   ];
+
+  // Função para obter o hue de uma cor
+  const getHueFromColor = (hex) => {
+    const cor = CORES_DISPONIVEIS.find(c => c.hex === hex);
+    return cor ? cor.hue : 180;
+  };
 
   useEffect(() => {
     carregarDecks();
@@ -47,7 +53,7 @@ function DecksPage() {
   const fecharModal = () => {
     setMostrarModal(false);
     setEditandoId(null);
-    setNovoDeck({ nome: '', descricao: '', formato: 'TCG', corTema: '#4b0082' });
+    setNovoDeck({ nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3' });
   };
 
   const handleSalvar = async (e) => {
@@ -102,7 +108,7 @@ function DecksPage() {
       nome: deck.nome, 
       descricao: deck.descricao, 
       formato: deck.configuration?.formato || 'TCG',
-      corTema: deck.configuration?.corTema || '#4b0082' 
+      corTema: deck.configuration?.corTema || '#0028B3' 
     });
     setEditandoId(deck.id);
     setMostrarModal(true);
@@ -153,12 +159,18 @@ function DecksPage() {
 
         {decksFiltrados.map((deck) => {
           const corPrimaria = deck.configuration?.corTema || '#333';
+          const hueOffset = getHueFromColor(corPrimaria);
           return (
             <Link 
               to={`/decks/${deck.id}`} 
               key={deck.id} 
               className="deck-card" 
-              style={{ borderColor: corPrimaria }}
+              style={{ 
+                borderColor: corPrimaria, 
+                '--tema-cor': corPrimaria,
+                '--hue-offset': `${hueOffset}deg`,
+                background: `linear-gradient(135deg, ${corPrimaria}10 0%, #ffffff 100%)`
+              }}
             >
               <div className="card-actions">
                 <button className="btn-edit" onClick={(e) => abrirEdicao(e, deck)} title="Editar Deck">✎</button>
@@ -167,14 +179,23 @@ function DecksPage() {
 
               <div className="deck-image-placeholder">
                 <img src="https://images.ygoprodeck.com/images/cards/back_high.jpg" alt="Verso" />
+                <div className="deck-overlay">
+                  <span>Ver Deck</span>
+                </div>
               </div>
               
               <div className="deck-info">
                 <h3 style={{ color: corPrimaria }}>{deck.nome}</h3>
                 <p className="deck-desc">{deck.descricao}</p>
-                <span className="deck-format" style={{ backgroundColor: corPrimaria }}>
-                  {deck.configuration?.formato || 'TCG'}
-                </span>
+                <div className="deck-meta">
+                  <span className="deck-format" style={{ color: corPrimaria, borderColor: corPrimaria }}>
+                    {deck.configuration?.formato || 'TCG'}
+                  </span>
+                  <span className="deck-cards-count">
+                    {/* Aqui você pode adicionar contagem de cartas se tiver */}
+                    ⚔️
+                  </span>
+                </div>
               </div>
             </Link>
           );

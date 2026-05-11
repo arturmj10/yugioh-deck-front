@@ -31,7 +31,7 @@ export const getDeckById = async (id) => {
 
 /**
  * Cria um novo deck.
- * O backend atualmente fixa Formato "TCG" e Cor "#3f51b5".
+ * O backend atualmente fixa Formato "TCG" e Cor "#0028B3".
  */
 export const criarDeck = async (deck) => {
   const response = await api.post('/', deck);

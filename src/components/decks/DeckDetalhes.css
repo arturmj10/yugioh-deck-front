@@ -1,0 +1,107 @@
+.deck-detail-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #333;
+}
+
+.deck-detail-header {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 40, 179, 0.1);
+}
+
+.deck-builder-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px; /* Busca maior, lista do deck menor */
+  gap: 20px;
+  align-items: start;
+}
+
+.search-column, .deck-list-column {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 40, 179, 0.1);
+}
+
+.search-box {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 10px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  color: #333;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: #0028B3;
+  box-shadow: 0 0 5px rgba(0, 40, 179, 0.2);
+}
+
+.card-item {
+  display: flex;
+  justify-content: space-between;
+  background: #f9f9f9;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #0028B3;
+  color: #333;
+  transition: background 0.2s;
+}
+
+.card-item:hover {
+  background: #f0f0f0;
+}
+
+.deck-detail-header h1 {
+  color: #0028B3;
+  margin: 0;
+}
+
+.helper-text {
+  color: #999;
+}
+
+.empty-msg {
+  color: #999;
+}
+
+.current-deck-list {
+  background: #f9f9f9;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.card-item-actions button {
+  background: #0028B3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+  margin: 0 4px;
+}
+
+.card-item-actions button:hover {
+  background: #001a7a;
+}
