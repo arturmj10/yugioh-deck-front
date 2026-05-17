@@ -133,6 +133,13 @@
   mix-blend-mode: hard-light;
 }
 
+.deck-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
 .deck-overlay span {
   color: white;
   font-weight: bold;

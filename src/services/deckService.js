@@ -1,57 +1,73 @@
 // src/services/deckService.js
-import axios from 'axios';
+const API_URL = 'http://localhost:5282/api';
 
-// A porta 5282 confirmada pelo seu 'dotnet run'
-const API_URL = 'http://localhost:5282/api/decks';
+const handleFetchJson = async (res, errorMessage) => {
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(txt || errorMessage);
+  }
+  return res.status === 204 ? null : res.json();
+};
 
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-/**
- * Busca todos os decks cadastrados.
- * Retorna a lista com Configuration incluída (conforme seu GetDecks no C#).
- */
 export const getDecks = async () => {
-  const response = await api.get('/');
-  return response.data;
+  const res = await fetch(`${API_URL}/decks`);
+  return handleFetchJson(res, 'Erro ao buscar inventário de decks');
 };
 
-/**
- * Busca um deck específico por ID.
- * Traz detalhes das cartas e configurações (conforme seu GetDeck(id) no C#).
- */
 export const getDeckById = async (id) => {
-  const response = await api.get(`/${id}`);
-  return response.data;
+  const res = await fetch(`${API_URL}/decks/${id}`);
+  return handleFetchJson(res, 'Erro ao carregar detalhes do deck');
 };
 
-/**
- * Cria um novo deck.
- * O backend atualmente fixa Formato "TCG" e Cor "#0028B3".
- */
 export const criarDeck = async (deck) => {
-  const response = await api.post('/', deck);
-  return response.data;
+  const res = await fetch(`${API_URL}/decks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(deck)
+  });
+  return handleFetchJson(res, 'Erro ao criar deck');
 };
 
-/**
- * Atualiza um deck existente.
- * Envia o ID na URL e o objeto completo no corpo da requisição.
- */
 export const atualizarDeck = async (deck) => {
-  // Assume que o objeto deck possui uma propriedade 'id'
-  const response = await api.put(`/${deck.id}`, deck);
-  return response.data;
+  const res = await fetch(`${API_URL}/decks/${deck.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(deck)
+  });
+  return handleFetchJson(res, 'Erro ao atualizar deck');
 };
 
-/**
- * Remove um deck permanentemente.
- */
 export const deletarDeck = async (id) => {
-  const response = await api.delete(`/${id}`);
-  return response.data;
+  const res = await fetch(`${API_URL}/decks/${id}`, { method: 'DELETE' });
+  return handleFetchJson(res, 'Erro ao deletar deck');
 };
+
+export const buscarCartasDoCatalogo = async (query) => {
+  if (!query || !query.trim()) return [];
+  const res = await fetch(`${API_URL}/cards/search?q=${encodeURIComponent(query)}`);
+  if (res.status === 404) return [];
+  const data = await handleFetchJson(res, 'Erro ao pesquisar cartas');
+  return data.map(c => ({
+    cardId: c.id ?? c.Id ?? c.cardId,
+    nome: c.name ?? c.Name ?? c.nome ?? c.Nome,
+    imagem: c.imageUrl ?? c.ImageUrl ?? c.imagem ?? null,
+    raw: c
+  }));
+};
+
+export const adicionarCartaAoDeck = async (deckId, cardId, slot = 'Main', quantidade = 1) => {
+  const res = await fetch(`${API_URL}/decks/${deckId}/cards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cardId, slot, quantidade })
+  });
+  return handleFetchJson(res, 'Erro ao aplicar regras do deck.');
+};
+
+export const removerCartaDoDeck = async (deckId, cardId, slot = 'Main') => {
+  const res = await fetch(`${API_URL}/decks/${deckId}/cards/${cardId}?slot=${encodeURIComponent(slot)}`, { method: 'DELETE' });
+  return handleFetchJson(res, 'Erro ao remover carta.');
+};
+
+// Alias para compatibilidade
+export const removerUnidadeCartaDoDeck = removerCartaDoDeck;

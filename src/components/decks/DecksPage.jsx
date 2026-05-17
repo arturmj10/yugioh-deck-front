@@ -160,6 +160,10 @@ function DecksPage() {
         {decksFiltrados.map((deck) => {
           const corPrimaria = deck.configuration?.corTema || '#333';
           const hueOffset = getHueFromColor(corPrimaria);
+          const cartasCount = deck.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0;
+          const capaId = deck.configuration?.capaCardId;
+          const capaCard = deck.deckCards?.find(dc => dc.cardId === capaId || dc.card?.id === capaId || dc.card?.Id === capaId);
+          const capaImg = capaCard?.card?.imageUrl || capaCard?.card?.ImageUrl || capaCard?.card?.imagem || 'https://images.ygoprodeck.com/images/cards/back_high.jpg';
           return (
             <Link 
               to={`/decks/${deck.id}`} 
@@ -178,7 +182,7 @@ function DecksPage() {
               </div>
 
               <div className="deck-image-placeholder">
-                <img src="https://images.ygoprodeck.com/images/cards/back_high.jpg" alt="Verso" />
+                <img src={capaImg} alt={deck.nome} />
                 <div className="deck-overlay">
                   <span>Ver Deck</span>
                 </div>
@@ -191,10 +195,7 @@ function DecksPage() {
                   <span className="deck-format" style={{ color: corPrimaria, borderColor: corPrimaria }}>
                     {deck.configuration?.formato || 'TCG'}
                   </span>
-                  <span className="deck-cards-count">
-                    {/* Aqui você pode adicionar contagem de cartas se tiver */}
-                    ⚔️
-                  </span>
+                  <span className="deck-cards-count">{`${cartasCount}/60`}</span>
                 </div>
               </div>
             </Link>
