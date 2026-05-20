@@ -1,73 +1,47 @@
-// src/services/deckService.js
-const API_URL = 'http://localhost:5282/api';
+import { createApiClient } from './apiClient';
 
-const handleFetchJson = async (res, errorMessage) => {
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(txt || errorMessage);
-  }
-  return res.status === 204 ? null : res.json();
-};
+const api = createApiClient('/decks');
 
 export const getDecks = async () => {
-  const res = await fetch(`${API_URL}/decks`);
-  return handleFetchJson(res, 'Erro ao buscar inventário de decks');
+  const response = await api.get('/');
+  return response.data;
 };
 
 export const getDeckById = async (id) => {
-  const res = await fetch(`${API_URL}/decks/${id}`);
-  return handleFetchJson(res, 'Erro ao carregar detalhes do deck');
+  const response = await api.get(`/${id}`);
+  return response.data;
 };
 
 export const criarDeck = async (deck) => {
-  const res = await fetch(`${API_URL}/decks`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(deck)
-  });
-  return handleFetchJson(res, 'Erro ao criar deck');
+  const response = await api.post('/', deck);
+  return response.data;
 };
 
 export const atualizarDeck = async (deck) => {
-  const res = await fetch(`${API_URL}/decks/${deck.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(deck)
-  });
-  return handleFetchJson(res, 'Erro ao atualizar deck');
+  const response = await api.put(`/${deck.id}`, deck);
+  return response.data;
 };
 
 export const deletarDeck = async (id) => {
-  const res = await fetch(`${API_URL}/decks/${id}`, { method: 'DELETE' });
-  return handleFetchJson(res, 'Erro ao deletar deck');
+  const response = await api.delete(`/${id}`);
+  return response.data;
 };
 
-export const buscarCartasDoCatalogo = async (query) => {
-  if (!query || !query.trim()) return [];
-  const res = await fetch(`${API_URL}/cards/search?q=${encodeURIComponent(query)}`);
-  if (res.status === 404) return [];
-  const data = await handleFetchJson(res, 'Erro ao pesquisar cartas');
-  return data.map(c => ({
-    cardId: c.id ?? c.Id ?? c.cardId,
-    nome: c.name ?? c.Name ?? c.nome ?? c.Nome,
-    imagem: c.imageUrl ?? c.ImageUrl ?? c.imagem ?? null,
-    raw: c
-  }));
-};
-
-export const adicionarCartaAoDeck = async (deckId, cardId, slot = 'Main', quantidade = 1) => {
-  const res = await fetch(`${API_URL}/decks/${deckId}/cards`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cardId, slot, quantidade })
-  });
-  return handleFetchJson(res, 'Erro ao aplicar regras do deck.');
+export const adicionarCartaAoDeck = async (
+  deckId,
+  cardId,
+  slot = 'Main',
+  quantidade = 1
+) => {
+  const response = await api.post(`/${deckId}/cards`, { cardId, slot, quantidade });
+  return response.data;
 };
 
 export const removerCartaDoDeck = async (deckId, cardId, slot = 'Main') => {
-  const res = await fetch(`${API_URL}/decks/${deckId}/cards/${cardId}?slot=${encodeURIComponent(slot)}`, { method: 'DELETE' });
-  return handleFetchJson(res, 'Erro ao remover carta.');
+  const response = await api.delete(`/${deckId}/cards/${cardId}`, {
+    params: { slot },
+  });
+  return response.data;
 };
 
-// Alias para compatibilidade
 export const removerUnidadeCartaDoDeck = removerCartaDoDeck;

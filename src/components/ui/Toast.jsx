@@ -1,5 +1,5 @@
 // src/components/ui/Toast.jsx
-import { CheckCircle, XCircle, Info, X } from 'lucide-react';
+import { CheckCircle, XCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 const config = {
   success: {
@@ -19,6 +19,12 @@ const config = {
     bg: 'bg-blue-50 border-blue-400',
     text: 'text-blue-800',
     iconColor: 'text-blue-500',
+  },
+  warning: {
+    icon: AlertTriangle,
+    bg: 'bg-amber-50 border-amber-400',
+    text: 'text-amber-800',
+    iconColor: 'text-amber-500',
   },
 };
 
