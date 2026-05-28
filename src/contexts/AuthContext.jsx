@@ -48,9 +48,26 @@ export function AuthProvider({ children }) {
     userManager.signinRedirect();
   }, []);
 
-  // Encerra a sessão no Keycloak e limpa o estado local
-  const logout = useCallback(() => {
-    userManager.signoutRedirect();
+  // Encerra a sessão: limpa a sessão local primeiro (feedback imediato),
+  // depois tenta o logout no servidor Keycloak com fallback para /login.
+  const logout = useCallback(async () => {
+    try {
+      // 1. Remove o usuário da sessionStorage — reage imediatamente na UI
+      await userManager.removeUser();
+      setUser(null);
+    } catch {
+      // ignora erros de limpeza local
+    }
+
+    try {
+      // 2. Redireciona para o endpoint de logout do Keycloak
+      await userManager.signoutRedirect();
+    } catch (err) {
+      // Fallback: se o Keycloak não tiver end_session_endpoint configurado
+      // ou estiver inacessível, redireciona manualmente para /login
+      console.warn('[Auth] signoutRedirect falhou, redirecionando para /login:', err);
+      window.location.href = '/login';
+    }
   }, []);
 
   // Token de acesso JWT — usado nos headers das requisições
