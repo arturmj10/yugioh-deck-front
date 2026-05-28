@@ -39,17 +39,24 @@ function DecksPage() {
     return cor ? cor.hue : 180;
   };
 
-  // Trata erros de sessão expirada de forma centralizada
+  // Trata erros de sessão expirada de forma centralizada.
+  // Só faz logout se o token existia (401 real) — evita logout por token ainda não pronto.
   const handleServiceError = useCallback((error, fallbackMsg) => {
     if (error.message === 'SESSION_EXPIRED') {
-      toast.error('Sessão expirada. Faça login novamente.');
-      logout();
+      if (token) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        logout();
+      } else {
+        console.warn('[handleServiceError] 401 recebido sem token — backend pode não estar aceitando o token do Keycloak.');
+        toast.error('Erro de autenticação. Verifique se o backend está rodando e configurado.');
+      }
     } else {
       toast.error(error.message || fallbackMsg);
     }
-  }, [logout]);
+  }, [token, logout]);
 
   const carregarDecks = useCallback(async (nomeBusca = '', formatoBusca = 'Todos') => {
+    if (!token) return; // token ainda não disponível, aguarda próximo render
     try {
       const dados = await getDecks(token, nomeBusca, formatoBusca);
       setDecks(dados);

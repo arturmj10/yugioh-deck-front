@@ -11,14 +11,24 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Verifica se já existe uma sessão salva (sessionStorage)
+    // Se a URL contém os parâmetros do callback OIDC, aguardamos o evento
+    // userLoaded (disparado pelo AuthCallback) em vez de resolver via getUser(),
+    // evitando que isLoading vire false antes do token ser processado.
+    const params = new URLSearchParams(window.location.search);
+    const isCallbackUrl = params.has('code') && params.has('state');
+
     userManager.getUser().then((u) => {
-      setUser(u);
-      setIsLoading(false);
+      if (!isCallbackUrl) {
+        setUser(u);
+        setIsLoading(false);
+      }
     });
 
     // Ouve eventos do userManager para manter o estado sincronizado
-    const onUserLoaded    = (u) => setUser(u);
+    const onUserLoaded = (u) => {
+      setUser(u);
+      setIsLoading(false); // garante que isLoading cai antes do navigate
+    };
     const onUserUnloaded  = ()  => setUser(null);
     const onUserExpired   = ()  => setUser(null);
 
