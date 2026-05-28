@@ -5,6 +5,7 @@ import {
   getDeckById,
   adicionarCartaAoDeck,
   removerUnidadeCartaDoDeck,
+  atualizarDeck,
 } from '../../services/deckService';
 import { buscarCartasDoCatalogo } from '../../services/cardService';
 import { useToast } from '../../hooks/useToast';
@@ -12,7 +13,9 @@ import {
   filterCatalogCards,
   FILTROS_CATALOGO_INICIAL,
 } from '../../utils/catalogFilters';
+import { buildDeckUpdatePayload } from '../../utils/deckUtils';
 import DeckDetailHeader from './DeckDetailHeader';
+import DeckCoverSection from './DeckCoverSection';
 import CardCatalogPanel from './CardCatalogPanel';
 import DeckCardsPanel from './DeckCardsPanel';
 import CardInspectModal from './CardInspectModal';
@@ -83,6 +86,24 @@ function DeckDetalhesPage() {
     }
   };
 
+  const handleDefinirCapa = async (cardId) => {
+    if (!deck) return;
+    try {
+      const payload = buildDeckUpdatePayload(deck, { capaCardId: cardId });
+      await atualizarDeck(payload);
+      setDeck((prev) => ({
+        ...prev,
+        configuration: {
+          ...prev.configuration,
+          ...payload.configuration,
+        },
+      }));
+      toast.success(cardId ? 'Capa do deck definida!' : 'Capa padrão restaurada.');
+    } catch (error) {
+      toast.error(error.message || 'Erro ao definir a capa.');
+    }
+  };
+
   const handleRemover = async (cardId, slotDaCarta = 'Main') => {
     if (!deck) return;
     try {
@@ -114,6 +135,8 @@ function DeckDetalhesPage() {
         corTema={corTema}
         onVoltar={() => navigate(-1)}
       />
+
+      <DeckCoverSection deck={deck} corTema={corTema} onSelectCapa={handleDefinirCapa} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <CardCatalogPanel

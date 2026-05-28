@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { CORES_DISPONIVEIS, FORMATOS_DECK, DECK_FORM_DEFAULT } from '../../constants/deckConstants';
-import { deckToFormValues } from '../../utils/deckUtils';
+import { deckToFormValues, getDeckCards } from '../../utils/deckUtils';
+import DeckCoverPicker from './DeckCoverPicker';
 
 const inputClass =
   'w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow';
@@ -27,6 +28,7 @@ function DeckFormModal({ isOpen, onClose, deckEditando, onSalvar }) {
       isOpen={isOpen}
       onClose={onClose}
       title={deckEditando ? 'Editar Deck' : 'Criar Novo Deck'}
+      size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -97,6 +99,20 @@ function DeckFormModal({ isOpen, onClose, deckEditando, onSalvar }) {
             Atributo selecionado: <strong>{corSelecionada?.nome || 'Nenhum'}</strong>
           </p>
         </div>
+
+        {deckEditando && getDeckCards(deckEditando).length > 0 && (
+          <div className="pt-2 border-t border-gray-100">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Capa do deck
+            </label>
+            <DeckCoverPicker
+              deck={deckEditando}
+              selectedCapaCardId={values.capaCardId}
+              onSelect={(cardId) => setValues({ ...values, capaCardId: cardId })}
+              accentColor={values.corTema}
+            />
+          </div>
+        )}
 
         <div className="flex gap-3 pt-4 border-t border-gray-200">
           <button

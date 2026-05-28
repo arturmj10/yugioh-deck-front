@@ -17,4 +17,5 @@ export const DECK_FORM_DEFAULT = {
   descricao: '',
   formato: 'TCG',
   corTema: '#0028B3',
+  capaCardId: null,
 };

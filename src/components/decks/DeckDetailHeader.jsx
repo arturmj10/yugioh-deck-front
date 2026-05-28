@@ -12,9 +12,15 @@ function DeckDetailHeader({ deck, corTema, onVoltar }) {
       <button
         type="button"
         onClick={onVoltar}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 self-start"
+        className="inline-flex items-center gap-2 self-start px-4 py-2.5 text-sm font-semibold bg-white rounded-lg border-2 shadow-sm transition-all hover:shadow-md hover:bg-gray-50 active:scale-[0.98]"
+        style={{ borderColor: corTema, color: corTema }}
       >
-        <ArrowLeft className="w-4 h-4" />
+        <span
+          className="flex items-center justify-center w-7 h-7 rounded-md"
+          style={{ backgroundColor: `${corTema}18` }}
+        >
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+        </span>
         Voltar
       </button>
       <div className="flex-1 min-w-0">

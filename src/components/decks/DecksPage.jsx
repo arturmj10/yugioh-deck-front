@@ -82,6 +82,10 @@ function DecksPage() {
                   ...payload,
                   configuration: payload.configuration,
                   deckCards: d.deckCards,
+                  configuration: {
+                    ...d.configuration,
+                    ...payload.configuration,
+                  },
                 }
               : d
           )

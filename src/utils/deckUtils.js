@@ -50,28 +50,67 @@ export async function enrichDecksWithCards(decks, fetchDeckById) {
   );
 }
 
+export function getDeckConfiguration(deck) {
+  return deck?.configuration ?? deck?.Configuration ?? {};
+}
+
+export function getCapaCardId(deck) {
+  const config = getDeckConfiguration(deck);
+  const id = config.capaCardId ?? config.CapaCardId;
+  return id != null ? id : null;
+}
+
+export function getDeckCardImage(item) {
+  const card = item?.card;
+  return card?.imageUrl || card?.ImageUrl || card?.imagem || CARD_BACK_URL;
+}
+
+/** Uma entrada por carta distinta (para escolher capa). */
+export function getUniqueCoverOptions(deck) {
+  const seen = new Set();
+  return getDeckCards(deck).filter((item) => {
+    const cardId = getDeckCardId(item);
+    if (!cardId || seen.has(cardId)) return false;
+    seen.add(cardId);
+    return true;
+  });
+}
+
 export function getDeckCoverImage(deck) {
-  const capaId = deck?.configuration?.capaCardId;
-  const capaCard = getDeckCards(deck).find(
-    (dc) =>
-      dc.cardId === capaId ||
-      dc.card?.id === capaId ||
-      dc.card?.Id === capaId
-  );
-  return (
-    capaCard?.card?.imageUrl ||
-    capaCard?.card?.ImageUrl ||
-    capaCard?.card?.imagem ||
-    CARD_BACK_URL
-  );
+  const capaId = getCapaCardId(deck);
+  if (!capaId) return CARD_BACK_URL;
+
+  const capaCard = getDeckCards(deck).find((dc) => getDeckCardId(dc) === capaId);
+  return capaCard ? getDeckCardImage(capaCard) : CARD_BACK_URL;
+}
+
+export function buildDeckUpdatePayload(deck, overrides = {}) {
+  const config = getDeckConfiguration(deck);
+  const capa =
+    overrides.capaCardId !== undefined
+      ? overrides.capaCardId
+      : config.capaCardId ?? config.CapaCardId ?? null;
+
+  return {
+    id: deck.id ?? deck.Id,
+    nome: overrides.nome ?? deck.nome ?? deck.Nome ?? '',
+    descricao: overrides.descricao ?? deck.descricao ?? deck.Descricao ?? '',
+    configuration: {
+      formato: overrides.formato ?? config.formato ?? config.Formato ?? 'TCG',
+      corTema: overrides.corTema ?? config.corTema ?? config.CorTema ?? '#0028B3',
+      capaCardId: capa,
+    },
+  };
 }
 
 export function deckToFormValues(deck) {
+  const config = getDeckConfiguration(deck);
   return {
-    nome: deck.nome || '',
-    descricao: deck.descricao || '',
-    formato: deck.configuration?.formato || 'TCG',
-    corTema: deck.configuration?.corTema || '#0028B3',
+    nome: deck.nome || deck.Nome || '',
+    descricao: deck.descricao || deck.Descricao || '',
+    formato: config.formato || config.Formato || 'TCG',
+    corTema: config.corTema || config.CorTema || '#0028B3',
+    capaCardId: config.capaCardId ?? config.CapaCardId ?? null,
   };
 }
 
@@ -82,6 +121,7 @@ export function formValuesToPayload(values) {
     configuration: {
       formato: values.formato,
       corTema: values.corTema,
+      capaCardId: values.capaCardId ?? null,
     },
   };
 }
