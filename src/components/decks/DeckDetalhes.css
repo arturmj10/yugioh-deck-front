@@ -1,35 +1,109 @@
+/* src/components/decks/DeckDetalhes.css */
 .deck-detail-container {
-  padding: 20px;
-  max-width: 1200px;
+  padding: 20px 40px;
+  max-width: 1800px;
   margin: 0 auto;
-  color: #333;
+  color: var(--text-main);
 }
 
 .deck-detail-header {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 25px;
+  background: var(--bg-panel);
+  padding: 24px 30px;
+  border-radius: 12px;
+  margin-bottom: 30px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  border: 1px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0, 40, 179, 0.1);
+  gap: 24px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 12px var(--shadow-color);
+  transition: box-shadow 0.3s ease;
+}
+.deck-detail-header:hover {
+  box-shadow: 0 6px 16px var(--shadow-strong);
 }
 
+.btn-back {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-back:hover {
+  background: var(--bg-input);
+  color: var(--text-main);
+  transform: translateX(-2px);
+}
+
+.deck-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deck-header-info h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.deck-badges {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.badge-format {
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+.badge-count {
+  background: var(--bg-input);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Nova grade visual */
 .deck-builder-grid {
   display: grid;
-  grid-template-columns: 1fr 350px; /* Busca maior, lista do deck menor */
+  grid-template-columns: 1fr 1fr; /* Catálogo e Deck 50/50 */
   gap: 20px;
   align-items: start;
 }
 
+@media (max-width: 1100px) {
+  .deck-builder-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .search-column, .deck-list-column {
-  background: #ffffff;
+  background: var(--bg-panel);
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid #e0e0e0;
-  box-shadow: 0 2px 8px rgba(0, 40, 179, 0.1);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 8px var(--shadow-color);
+  min-height: 80vh;
 }
 
 .search-box {
@@ -40,264 +114,255 @@
 
 .search-box input {
   flex: 1;
-  padding: 10px;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  color: #333;
-  border-radius: 4px;
-  transition: border-color 0.2s;
+  padding: 16px 20px;
+  background: var(--bg-input);
+  border: 2px solid transparent;
+  color: var(--text-main);
+  border-radius: 8px;
+  font-size: 1.15rem;
+  transition: all 0.3s ease;
 }
 
 .search-box input:focus {
   outline: none;
-  border-color: #0028B3;
-  box-shadow: 0 0 5px rgba(0, 40, 179, 0.2);
+  background: var(--bg-panel);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px var(--shadow-strong);
 }
 
-.card-item {
-  display: flex;
-  justify-content: space-between;
-  background: #f9f9f9;
-  padding: 10px;
-  margin-bottom: 8px;
-  border-radius: 4px;
-  border-left: 3px solid #0028B3;
-  color: #333;
-  transition: background 0.2s;
-}
-
-.card-item:hover {
-  background: #f0f0f0;
-}
-
-.deck-detail-header h1 {
-  color: #0028B3;
-  margin: 0;
-}
-
-.helper-text {
-  color: #999;
-}
-
-.empty-msg {
-  color: #999;
-}
-
-.current-deck-list {
-  background: #f9f9f9;
-  border-radius: 4px;
-  padding: 8px;
-}
-
-.card-item-actions button {
-  background: #0028B3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.2s;
-  margin: 0 4px;
-}
-
-.card-item-actions button:hover {
-  background: #001a7a;
-}
-
-/* ===== GRID PROFISSIONAL COM DECK-CARD ===== */
-
+/* ===== CATÁLOGO E ZONAS DE DECK ===== */
 .catalog-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 20px;
+  align-items: start;
+  align-content: start;
 }
 
-.deck-card {
-  position: relative;
-  background: #ffffff;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid #e0e0e0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+/* Zona de drop */
+.deck-zone {
+  background: var(--bg-input);
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
+  min-height: 140px;
 }
 
-.deck-card:hover {
-  transform: scale(1.05);
+.deck-zone:hover {
+  border-color: var(--text-muted);
+  background: var(--border-subtle);
+}
+
+.deck-zone.drag-over {
+  background: var(--bg-input);
+  border-color: var(--primary-hover);
+  transform: scale(1.01);
+  box-shadow: 0 4px 12px var(--shadow-strong);
+}
+
+.deck-zone-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-subtle);
+  padding-bottom: 8px;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.deck-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 8px;
+  align-items: start;
+  align-content: start;
+}
+
+/* ===== CARTAS VISUAIS ===== */
+.builder-card {
+  position: relative;
+  background: transparent;
+  border-radius: 4px;
+  transition: transform 0.1s;
+  cursor: pointer;
+  user-select: none;
+}
+
+.builder-card:hover {
+  transform: scale(1.08);
   z-index: 10;
 }
 
-.deck-image-placeholder {
+.builder-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.95);
+}
+
+.builder-card-image {
   position: relative;
   width: 100%;
   aspect-ratio: 63 / 90;
   overflow: hidden;
-  background: #f0f0f0;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-.deck-image-placeholder img {
+.builder-card-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.card-actions {
+/* Botão rápido de adicionar cópia */
+.btn-quick-add {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2ecc71;
+  color: white;
+  border: 3px solid white;
+  display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  padding: 8px;
-  border-radius: 6px;
-  z-index: 5;
-}
-
-.deck-card:hover .card-actions {
-  opacity: 1;
-}
-
-.card-actions button {
-  background: rgba(0, 40, 179, 0.95);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 12px;
+  font-weight: bold;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  min-width: 50px;
+  z-index: 20;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+  font-size: 20px;
+  line-height: 1;
 }
 
-.card-actions button:hover {
-  background: rgba(0, 40, 179, 1);
-  transform: scale(1.08);
-  box-shadow: 0 4px 12px rgba(0, 40, 179, 0.4);
+.builder-card:hover .btn-quick-add {
+  display: flex;
 }
 
-.btn-edit {
-  background: rgba(0, 40, 179, 0.9) !important;
-  font-size: 1.2rem;
-  padding: 10px 12px;
+.btn-quick-add:hover {
+  background: #27ae60;
+  transform: scale(1.1);
 }
 
-.btn-save {
-  background: rgba(76, 175, 80, 0.9) !important;
+/* Stack badge (canto inferior direito) */
+.stack-badge {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  background: #e74c3c;
+  color: white;
+  border: 3px solid white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: bold;
+  z-index: 20;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.4);
 }
 
-.btn-save:hover {
-  background: rgba(76, 175, 80, 1) !important;
+/* Badge de limite excedido */
+.stack-badge.limit-exceeded {
+  background: #c0392b;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+
+/* Remove os actions antigos que poluíam o visual */
+.card-actions {
+  display: none;
 }
 
 /* ===== MODAL DE INSPEÇÃO ===== */
-
 .modal-overlay {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.2s ease-in-out;
 }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  animation: scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes scaleIn {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* ===== FILTROS E INPUTS ===== */
-
+/* ===== FILTROS ===== */
 .filter-panel {
-  background: #f9f9f9;
-  padding: 12px;
+  background: var(--bg-input);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: inset 0 2px 4px var(--shadow-color);
+}
+.filter-panel select, .filter-panel input {
+  padding: 12px 18px;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  font-size: 1.05rem;
+  background: var(--bg-panel);
+  color: var(--text-main);
+  transition: all 0.2s;
+  cursor: pointer;
 }
-
-.filter-panel select,
-.filter-panel input[type="number"] {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #ffffff;
-  color: #333;
-  transition: border-color 0.2s;
+.filter-panel select:hover, .filter-panel input:hover {
+  border-color: var(--text-muted);
 }
-
-.filter-panel select:focus,
-.filter-panel input[type="number"]:focus {
+.filter-panel select:focus, .filter-panel input:focus {
   outline: none;
-  border-color: #0028B3;
-  box-shadow: 0 0 4px rgba(0, 40, 179, 0.2);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--shadow-strong);
 }
 
 .filter-panel button {
-  background: #0028B3;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: 12px 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.2s;
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  transition: all 0.2s;
 }
-
 .filter-panel button:hover {
-  background: #001a7a;
+  background: var(--bg-input);
+  border-color: var(--text-muted);
+  color: var(--text-main);
 }
 
-/* ===== CARD INFO (NOME E RARIDADE) ===== */
-
-.card-info {
-  padding: 8px;
-  background: #ffffff;
-  border-top: 1px solid #e0e0e0;
-  text-align: center;
+/* ===== BOTÕES DO MODAL ===== */
+.btn-modal-add {
+  flex: 1;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-
-.card-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
-  line-height: 1.2;
+.btn-modal-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
-
-.card-rarity {
-  font-size: 0.65rem;
-  color: #666;
-  font-weight: 500;
+.btn-modal-add:active {
+  transform: translateY(0);
 }
+.btn-modal-main { background: linear-gradient(135deg, #0028B3, #001a7a); }
+.btn-modal-main:hover { background: linear-gradient(135deg, #0033e6, #0028B3); }
+
+.btn-modal-extra { background: linear-gradient(135deg, #8e44ad, #6c3483); }
+.btn-modal-extra:hover { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+
+.btn-modal-side { background: linear-gradient(135deg, #2c3e50, #1a252f); }
+.btn-modal-side:hover { background: linear-gradient(135deg, #34495e, #2c3e50); }

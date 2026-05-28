@@ -1,30 +1,61 @@
+// src/App.jsx
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify'; // Importa o container
-import 'react-toastify/dist/ReactToastify.css'; // Importa o CSS padrão do Toast
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
+import { useAuth } from './hooks/useAuth';
 import Layout from './components/layout/Layout';
 import DecksPage from './components/decks/DecksPage';
 import DeckDetalhesPage from './components/decks/DeckDetalhesPage';
+import LoginPage from './components/auth/LoginPage';
+import AuthCallback from './components/auth/AuthCallback';
+
+// Guarda as rotas privadas: mostra loading enquanto auth inicializa,
+// redireciona para /login se não autenticado.
+function ProtectedRoute({ children }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a0a1a 0%, #00123a 100%)',
+        color: '#fff',
+        fontSize: '1.1rem',
+      }}>
+        ⚙️ Carregando...
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  return children;
+}
 
 function App() {
   return (
     <>
       <Routes>
+        {/* Rotas públicas */}
+        <Route path="/login"    element={<LoginPage />} />
+        <Route path="/callback" element={<AuthCallback />} />
+
+        {/* Rotas protegidas — dentro do Layout */}
         <Route element={<Layout />}>
-          {/* Redireciona a raiz para a listagem de decks */}
-          <Route path="/" element={<Navigate to="/decks" replace />} />
-          
-          <Route path="/decks" element={<DecksPage />} />
-          
-          {/* Rota para ver o conteúdo de um deck específico */}
-          <Route path="/decks/:id" element={<DeckDetalhesPage />} />
+          <Route path="/"         element={<Navigate to="/decks" replace />} />
+          <Route path="/decks"    element={<ProtectedRoute><DecksPage /></ProtectedRoute>} />
+          <Route path="/decks/:id" element={<ProtectedRoute><DeckDetalhesPage /></ProtectedRoute>} />
         </Route>
       </Routes>
 
-      {/* Container global de notificações */}
-      <ToastContainer 
-        position="bottom-right" // Aparece no canto inferior direito
-        autoClose={3000}       // Fecha sozinho após 3 segundos
+      {/* Container global de notificações (react-toastify) */}
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -32,7 +63,7 @@ function App() {
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="dark"           // Tema escuro para combinar com o seu CSS
+        theme="dark"
       />
     </>
   );

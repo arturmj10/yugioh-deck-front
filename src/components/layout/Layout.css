@@ -4,19 +4,20 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f5f5; /* Fundo claro branco */
-  color: #333;
+  background-color: transparent; 
+  color: var(--text-main);
 }
 
 .main-header {
   display: flex;
-  justify-content: space-between; /* Empurra logo pra um lado e user pro outro */
+  justify-content: space-between;
   align-items: center;
   padding: 0 40px;
   height: 70px;
-  background-color: #ffffff;
-  border-bottom: 3px solid #0028B3; /* Linha azul temática */
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  background-color: var(--bg-panel);
+  border-bottom: 3px solid var(--primary-color);
+  box-shadow: 0 2px 10px var(--shadow-color);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .logo {
@@ -26,37 +27,89 @@
   font-weight: bold;
   font-size: 1.2rem;
   letter-spacing: 1px;
-  color: #0028B3;
+  color: var(--primary-color);
 }
 
 .logo img {
   height: 80px;
-  filter: drop-shadow(0 0 5px rgba(0, 40, 179, 0.5));
+  filter: drop-shadow(0 0 5px var(--shadow-strong));
 }
 
 .user-profile {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #333;
+  color: var(--text-main);
+}
+
+.user-name {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .avatar {
   width: 35px;
   height: 35px;
-  background-color: #0028B3;
+  background-color: var(--primary-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   color: white;
+  flex-shrink: 0;
+}
+
+.btn-theme-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--bg-input);
+  border-color: var(--primary-color);
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-logout:hover {
+  background: rgba(231, 76, 60, 0.1);
+  border-color: #e74c3c;
+  color: #e74c3c;
 }
 
 .content {
   flex: 1;
-  padding: 20px;
-  max-width: 1200px;
+  padding: 20px 40px;
+  max-width: 1800px;
   margin: 0 auto;
   width: 100%;
 }

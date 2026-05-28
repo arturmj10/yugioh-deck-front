@@ -1,20 +1,24 @@
 // src/components/decks/DecksPage.jsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getDecks, criarDeck, deletarDeck, atualizarDeck } from '../../services/deckService';
 import { Link } from 'react-router-dom';
-import { toast } from 'react-toastify'; // 1. Importar o toast
+import { toast } from 'react-toastify';
+import { useAuth } from '../../hooks/useAuth';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import './Decks.css';
 
 function DecksPage() {
+  const { token, logout } = useAuth();
+
   const [decks, setDecks] = useState([]);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
-  
-  const [novoDeck, setNovoDeck] = useState({ 
-    nome: '', 
-    descricao: '', 
-    formato: 'TCG', 
-    corTema: '#0028B3' 
+
+  // Estado do ConfirmDialog (substitui window.confirm)
+  const [confirmState, setConfirmState] = useState({ isOpen: false, deckId: null });
+
+  const [novoDeck, setNovoDeck] = useState({
+    nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3',
   });
 
   const [filtroNome, setFiltroNome] = useState('');
@@ -27,28 +31,40 @@ function DecksPage() {
     { nome: 'Água', hex: '#3498db', hue: 200 },
     { nome: 'Vento', hex: '#2ecc71', hue: 140 },
     { nome: 'Terra', hex: '#a0522d', hue: 30 },
-    { nome: 'Divino', hex: '#ff8c00', hue: 30 }
+    { nome: 'Divino', hex: '#ff8c00', hue: 30 },
   ];
 
-  // Função para obter o hue de uma cor
   const getHueFromColor = (hex) => {
     const cor = CORES_DISPONIVEIS.find(c => c.hex === hex);
     return cor ? cor.hue : 180;
   };
 
-  useEffect(() => {
-    carregarDecks();
-  }, []);
+  // Trata erros de sessão expirada de forma centralizada
+  const handleServiceError = useCallback((error, fallbackMsg) => {
+    if (error.message === 'SESSION_EXPIRED') {
+      toast.error('Sessão expirada. Faça login novamente.');
+      logout();
+    } else {
+      toast.error(error.message || fallbackMsg);
+    }
+  }, [logout]);
 
-  const carregarDecks = async () => {
+  const carregarDecks = useCallback(async (nomeBusca = '', formatoBusca = 'Todos') => {
     try {
-      const dados = await getDecks();
+      const dados = await getDecks(token, nomeBusca, formatoBusca);
       setDecks(dados);
     } catch (error) {
-      toast.error("Erro ao carregar decks do banco!"); // Toast de erro
-      console.error(error);
+      handleServiceError(error, 'Erro ao carregar decks do banco!');
     }
-  };
+  }, [token, handleServiceError]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      carregarDecks(filtroNome, filtroFormato);
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [filtroNome, filtroFormato, carregarDecks]);
 
   const fecharModal = () => {
     setMostrarModal(false);
@@ -59,7 +75,7 @@ function DecksPage() {
   const handleSalvar = async (e) => {
     e.preventDefault();
     if (novoDeck.nome.trim().length > 30) {
-      toast.warning("Nome limitado a 30 caracteres!"); // Toast de aviso
+      toast.warning('Nome limitado a 30 caracteres!');
       return;
     }
 
@@ -68,83 +84,83 @@ function DecksPage() {
       descricao: novoDeck.descricao,
       configuration: {
         formato: novoDeck.formato,
-        corTema: novoDeck.corTema
-      }
+        corTema: novoDeck.corTema,
+      },
     };
 
     try {
       if (editandoId) {
-        await atualizarDeck({ id: editandoId, ...dadosParaEnviar });
-        toast.success("Deck atualizado com sucesso! 🎴"); // Toast de sucesso
+        await atualizarDeck({ id: editandoId, ...dadosParaEnviar }, token);
+        toast.success('Deck atualizado com sucesso! 🎴');
       } else {
-        await criarDeck(dadosParaEnviar);
-        toast.success("Novo deck criado! ⚔️"); // Toast de sucesso
+        await criarDeck(dadosParaEnviar, token);
+        toast.success('Novo deck criado! ⚔️');
       }
       fecharModal();
-      carregarDecks();
+      carregarDecks(filtroNome, filtroFormato);
     } catch (error) {
-      toast.error("Erro ao salvar no banco do Docker."); // Toast de erro
+      handleServiceError(error, 'Erro ao salvar deck.');
     }
   };
 
-  const handleExcluir = async (e, id) => {
+  // Abre o ConfirmDialog em vez do window.confirm nativo
+  const handleExcluir = (e, id) => {
     e.preventDefault();
     e.stopPropagation();
-    if (window.confirm("Deseja deletar este deck permanentemente?")) {
-      try {
-        await deletarDeck(id);
-        setDecks(decks.filter(d => d.id !== id));
-        toast.info("Deck removido do inventário."); // Toast informativo
-      } catch (error) {
-        toast.error("Não foi possível excluir o deck.");
-      }
+    setConfirmState({ isOpen: true, deckId: id });
+  };
+
+  const confirmarExclusao = async () => {
+    const { deckId } = confirmState;
+    setConfirmState({ isOpen: false, deckId: null });
+    try {
+      await deletarDeck(deckId, token);
+      setDecks(decks.filter(d => d.id !== deckId));
+      toast.info('Deck removido do inventário.');
+    } catch (error) {
+      handleServiceError(error, 'Não foi possível excluir o deck.');
     }
   };
 
   const abrirEdicao = (e, deck) => {
     e.preventDefault();
     e.stopPropagation();
-    setNovoDeck({ 
-      nome: deck.nome, 
-      descricao: deck.descricao, 
+    setNovoDeck({
+      nome: deck.nome,
+      descricao: deck.descricao,
       formato: deck.configuration?.formato || 'TCG',
-      corTema: deck.configuration?.corTema || '#0028B3' 
+      corTema: deck.configuration?.corTema || '#0028B3',
     });
     setEditandoId(deck.id);
     setMostrarModal(true);
   };
 
-  const decksFiltrados = decks.filter(deck => {
-    const matchesNome = deck.nome.toLowerCase().includes(filtroNome.toLowerCase());
-    const matchesFormato = filtroFormato === 'Todos' || deck.configuration?.formato === filtroFormato;
-    return matchesNome && matchesFormato;
-  });
+  const decksFiltrados = decks;
 
   return (
     <div className="decks-container">
-      
+
       {/* FILTROS */}
       <div className="filters-container">
         <div className="filter-group">
-          <input 
-            type="text" 
-            placeholder="Filtrar por nome..." 
+          <input
+            type="text"
+            placeholder="Filtrar por nome..."
             value={filtroNome}
             onChange={(e) => setFiltroNome(e.target.value)}
             className="search-input"
           />
         </div>
         <div className="filter-group">
-          <select 
-            value={filtroFormato} 
+          <select
+            value={filtroFormato}
             onChange={(e) => setFiltroFormato(e.target.value)}
             className="filter-select"
           >
             <option value="Todos">Todos os Formatos</option>
             <option value="TCG">TCG</option>
             <option value="OCG">OCG</option>
-            <option value="Speed Duel">Speed Duel</option>
-            <option value="Master Duel">Master Duel</option>
+            <option value="GOAT">Goat Format</option>
           </select>
         </div>
       </div>
@@ -162,18 +178,24 @@ function DecksPage() {
           const hueOffset = getHueFromColor(corPrimaria);
           const cartasCount = deck.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0;
           const capaId = deck.configuration?.capaCardId;
-          const capaCard = deck.deckCards?.find(dc => dc.cardId === capaId || dc.card?.id === capaId || dc.card?.Id === capaId);
-          const capaImg = capaCard?.card?.imageUrl || capaCard?.card?.ImageUrl || capaCard?.card?.imagem || 'https://images.ygoprodeck.com/images/cards/back_high.jpg';
+          const capaCard = deck.deckCards?.find(
+            dc => dc.cardId === capaId || dc.card?.id === capaId || dc.card?.Id === capaId
+          );
+          const capaImg = capaCard?.card?.imageUrl
+            || capaCard?.card?.ImageUrl
+            || capaCard?.card?.imagem
+            || 'https://images.ygoprodeck.com/images/cards/back_high.jpg';
+
           return (
-            <Link 
-              to={`/decks/${deck.id}`} 
-              key={deck.id} 
-              className="deck-card" 
-              style={{ 
-                borderColor: corPrimaria, 
+            <Link
+              to={`/decks/${deck.id}`}
+              key={deck.id}
+              className="deck-card"
+              style={{
+                borderColor: corPrimaria,
                 '--tema-cor': corPrimaria,
                 '--hue-offset': `${hueOffset}deg`,
-                background: `linear-gradient(135deg, ${corPrimaria}10 0%, #ffffff 100%)`
+                background: `linear-gradient(135deg, ${corPrimaria}15 0%, var(--bg-panel) 100%)`,
               }}
             >
               <div className="card-actions">
@@ -187,7 +209,7 @@ function DecksPage() {
                   <span>Ver Deck</span>
                 </div>
               </div>
-              
+
               <div className="deck-info">
                 <h3 style={{ color: corPrimaria }}>{deck.nome}</h3>
                 <p className="deck-desc">{deck.descricao}</p>
@@ -203,72 +225,71 @@ function DecksPage() {
         })}
       </div>
 
-      {/* MODAL */}
+      {/* MODAL DE CRIAÇÃO / EDIÇÃO */}
       {mostrarModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>{editandoId ? 'Editar Deck' : 'Criar Novo Deck'}</h2>
             <form onSubmit={handleSalvar}>
-              
+
               <div className="form-group">
                 <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  Nome do Deck 
+                  Nome do Deck
                   <span style={{ fontSize: '0.7rem', color: novoDeck.nome.length >= 25 ? '#e74c3c' : '#aaa' }}>
                     {novoDeck.nome.length}/30
                   </span>
                 </label>
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="text"
+                  required
                   maxLength="30"
                   value={novoDeck.nome}
-                  onChange={(e) => setNovoDeck({...novoDeck, nome: e.target.value})}
+                  onChange={(e) => setNovoDeck({ ...novoDeck, nome: e.target.value })}
                   placeholder="Nome do Deck"
                 />
               </div>
 
               <div className="form-group">
                 <label>Descrição:</label>
-                <textarea 
+                <textarea
                   rows="3"
                   value={novoDeck.descricao}
-                  onChange={(e) => setNovoDeck({...novoDeck, descricao: e.target.value})}
+                  onChange={(e) => setNovoDeck({ ...novoDeck, descricao: e.target.value })}
                   placeholder="Estratégia do deck..."
                 />
               </div>
 
               <div className="form-group">
                 <label>Formato:</label>
-                <select 
+                <select
                   className="form-select"
                   value={novoDeck.formato}
-                  onChange={(e) => setNovoDeck({...novoDeck, formato: e.target.value})}
+                  onChange={(e) => setNovoDeck({ ...novoDeck, formato: e.target.value })}
                 >
                   <option value="TCG">TCG</option>
                   <option value="OCG">OCG</option>
-                  <option value="Speed Duel">Speed Duel</option>
-                  <option value="Master Duel">Master Duel</option>
+                  <option value="GOAT">Goat Format</option>
                 </select>
               </div>
 
-            <div className="form-group">
-              <label>Cor do Tema:</label>
-              <div className="color-options">
-                {CORES_DISPONIVEIS.map((cor) => (
-                  <button
-                    key={cor.hex}
-                    type="button"
-                    title={cor.nome} // Aparece ao passar o mouse
-                    className={`color-dot ${novoDeck.corTema === cor.hex ? 'active' : ''}`}
-                    style={{ backgroundColor: cor.hex }}
-                    onClick={() => setNovoDeck({ ...novoDeck, corTema: cor.hex })}
-                  />
-                ))}
+              <div className="form-group">
+                <label>Cor do Tema:</label>
+                <div className="color-options">
+                  {CORES_DISPONIVEIS.map((cor) => (
+                    <button
+                      key={cor.hex}
+                      type="button"
+                      title={cor.nome}
+                      className={`color-dot ${novoDeck.corTema === cor.hex ? 'active' : ''}`}
+                      style={{ backgroundColor: cor.hex }}
+                      onClick={() => setNovoDeck({ ...novoDeck, corTema: cor.hex })}
+                    />
+                  ))}
+                </div>
+                <span className="selected-color-name">
+                  Atributo Selecionado: <strong>{CORES_DISPONIVEIS.find(c => c.hex === novoDeck.corTema)?.nome || 'Nenhum'}</strong>
+                </span>
               </div>
-              <span className="selected-color-name">
-                Atributo Selecionado: <strong>{CORES_DISPONIVEIS.find(c => c.hex === novoDeck.corTema)?.nome || 'Nenhum'}</strong>
-              </span>
-            </div>
 
               <div className="modal-actions">
                 <button type="button" onClick={fecharModal} className="btn-cancel">Cancelar</button>
@@ -280,6 +301,15 @@ function DecksPage() {
           </div>
         </div>
       )}
+
+      {/* DIÁLOGO DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={() => setConfirmState({ isOpen: false, deckId: null })}
+        onConfirm={confirmarExclusao}
+        title="Excluir Deck"
+        message="Deseja deletar este deck permanentemente? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 }

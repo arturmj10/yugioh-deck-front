@@ -1,23 +1,35 @@
 // src/components/layout/Layout.jsx
-import { Outlet } from 'react-router-dom';
+// Exibe nome real do usuário vindo do token Keycloak + botão de logout
+import { Outlet, Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../contexts/ThemeContext';
 import './Layout.css';
 
 function Layout() {
+  const { userName, userInitial, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <div className="app-container">
       <header className="main-header">
-        <div className="logo">
+        <Link to="/decks" className="logo" style={{ textDecoration: 'none' }}>
           <img src="/logo-yugioh.png" alt="Yu-Gi-Oh Logo" />
           <span>Deck Builder</span>
-        </div>
+        </Link>
         <div className="user-profile">
-          <span>Develin Gonçalves</span>
-          <div className="avatar">D</div>
+          <button className="btn-theme-toggle" onClick={toggleTheme} title="Alternar tema">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <span className="user-name">{userName}</span>
+          <div className="avatar" title={userName}>{userInitial}</div>
+          <button className="btn-logout" onClick={logout} title="Encerrar sessão">
+            ⏻
+          </button>
         </div>
       </header>
 
       <main className="content">
-        <Outlet /> {/* Aqui é onde as páginas (DecksPage) serão renderizadas */}
+        <Outlet />
       </main>
     </div>
   );

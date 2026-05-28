@@ -1,19 +1,21 @@
 // src/main.jsx
+// Remove o sistema de Toast custom (código morto) e adiciona o AuthProvider
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ToastProvider } from './contexts/ToastContext';
-import ToastContainer from './components/ui/ToastContainer';
+import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App.jsx';
 import './index.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-        <App />
-        <ToastContainer />
-      </ToastProvider>  
+      <AuthProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 );
