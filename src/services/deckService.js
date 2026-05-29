@@ -2,6 +2,102 @@
 // Todas as funções recebem `token` (JWT) e o enviam no header Authorization.
 // 401 lança erro com mensagem especial 'SESSION_EXPIRED' para os componentes tratarem.
 const API_URL = 'http://localhost:5282/api';
+const YGOPRO_API = 'https://db.ygoprodeck.com/api/v7/cardinfo.php';
+
+// Mapa de subtipo (UI) → tipo exato da API YGOProDeck
+const SUBTIPO_PARA_TIPO_API = {
+  'Normal':          'Normal Monster',
+  'Effect':          'Effect Monster',
+  'Ritual':          'Ritual Monster',
+  'Fusion':          'Fusion Monster',
+  'Synchro':         'Synchro Monster',
+  'XYZ':             'XYZ Monster',
+  'Link':            'Link Monster',
+  'Normal Spell':    'Normal Spell Card',
+  'Continuous Spell':'Continuous Spell Card',
+  'Field Spell':     'Field Spell Card',
+  'Equip Spell':     'Equip Spell Card',
+  'Quick-Play Spell':'Quick-Play Spell Card',
+  'Ritual Spell':    'Ritual Spell Card',
+  'Normal Trap':     'Normal Trap Card',
+  'Continuous Trap': 'Continuous Trap Card',
+  'Counter Trap':    'Counter Trap Card',
+};
+
+const SPELL_TYPES = [
+  'Normal Spell Card', 'Continuous Spell Card', 'Field Spell Card',
+  'Equip Spell Card', 'Quick-Play Spell Card', 'Ritual Spell Card',
+];
+const TRAP_TYPES = [
+  'Normal Trap Card', 'Continuous Trap Card', 'Counter Trap Card',
+];
+
+const mapCards = (data) => (data || []).map(c => ({
+  cardId: c.id,
+  nome:   c.name,
+  imagem: c.card_images?.[0]?.image_url ?? null,
+  raw:    c,
+}));
+
+const fetchByType = async (type, fname) => {
+  const params = new URLSearchParams({ language: 'pt', type });
+  if (fname) params.set('fname', fname);
+  const res = await fetch(`${YGOPRO_API}?${params}`);
+  if (res.status === 400 || res.status === 404) return [];
+  const json = await res.json();
+  return mapCards(json.data);
+};
+
+// Busca cartas diretamente na API pública do YGOProDeck usando filtros reais.
+// Não requer autenticação — é uma API pública.
+export const buscarCartasComFiltros = async (texto, filtros) => {
+  const { tipoPrincipal, subTipo, race, atributo, level } = filtros;
+  const term = texto.trim();
+
+  // Subtipo específico → uma única chamada com type=...
+  if (subTipo !== 'Todos' && subTipo !== 'Pendulum') {
+    return fetchByType(SUBTIPO_PARA_TIPO_API[subTipo], term);
+  }
+
+  // Pêndulo → sem type único, usa busca por nome
+  if (subTipo === 'Pendulum') {
+    return fetchByType('Pendulum Effect Monster', term)
+      .then(async (effect) => {
+        const normal = await fetchByType('Pendulum Normal Monster', term);
+        return [...effect, ...normal];
+      });
+  }
+
+  // Magias sem subtipo → busca todos os tipos em paralelo
+  if (tipoPrincipal === 'Magias') {
+    const results = await Promise.all(SPELL_TYPES.map(t => fetchByType(t, term)));
+    return results.flat();
+  }
+
+  // Armadilhas sem subtipo → busca todos os tipos em paralelo
+  if (tipoPrincipal === 'Armadilhas') {
+    const results = await Promise.all(TRAP_TYPES.map(t => fetchByType(t, term)));
+    return results.flat();
+  }
+
+  // Monstros e Todos → usa race / attribute / level / fname
+  const params = new URLSearchParams({ language: 'pt' });
+  if (race     !== 'Todos') params.set('race',      race);
+  if (atributo !== 'Todos') params.set('attribute', atributo);
+  if (level    !== 'Todos') params.set('level',     level);
+  if (term)                 params.set('fname',     term);
+
+  if (!params.has('fname') && !params.has('race') && !params.has('attribute') && !params.has('level')) {
+    params.set('fname', 'a');
+  }
+
+  const res = await fetch(`${YGOPRO_API}?${params}`);
+  if (res.status === 400 || res.status === 404) return [];
+  if (!res.ok) throw new Error('Erro ao buscar cartas na API');
+
+  const json = await res.json();
+  return mapCards(json.data);
+};
 
 // Monta os headers padrão com autenticação Bearer
 const makeHeaders = (token, withBody = false) => ({

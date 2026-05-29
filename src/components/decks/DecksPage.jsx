@@ -1,6 +1,6 @@
 // src/components/decks/DecksPage.jsx
 import { useEffect, useState, useCallback } from 'react';
-import { getDecks, criarDeck, deletarDeck, atualizarDeck } from '../../services/deckService';
+import { getDecks, getDeckById, criarDeck, deletarDeck, atualizarDeck } from '../../services/deckService';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,6 +11,7 @@ function DecksPage() {
   const { token, logout } = useAuth();
 
   const [decks, setDecks] = useState([]);
+  const [deckTotais, setDeckTotais] = useState({}); // { [deckId]: totalCartas }
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
 
@@ -56,10 +57,22 @@ function DecksPage() {
   }, [token, logout]);
 
   const carregarDecks = useCallback(async (nomeBusca = '', formatoBusca = 'Todos') => {
-    if (!token) return; // token ainda não disponível, aguarda próximo render
+    if (!token) return;
     try {
       const dados = await getDecks(token, nomeBusca, formatoBusca);
       setDecks(dados);
+
+      // Busca os totais de cartas em paralelo — o endpoint de lista não retorna DeckCards
+      const totais = await Promise.all(
+        dados.map(d => getDeckById(d.id, token)
+          .then(detalhe => ({
+            id: d.id,
+            total: detalhe.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0,
+          }))
+          .catch(() => ({ id: d.id, total: 0 }))
+        )
+      );
+      setDeckTotais(Object.fromEntries(totais.map(t => [t.id, t.total])));
     } catch (error) {
       handleServiceError(error, 'Erro ao carregar decks do banco!');
     }
@@ -183,7 +196,7 @@ function DecksPage() {
         {decksFiltrados.map((deck) => {
           const corPrimaria = deck.configuration?.corTema || '#333';
           const hueOffset = getHueFromColor(corPrimaria);
-          const cartasCount = deck.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0;
+          const cartasCount = deckTotais[deck.id] ?? 0;
           const capaId = deck.configuration?.capaCardId;
           const capaCard = deck.deckCards?.find(
             dc => dc.cardId === capaId || dc.card?.id === capaId || dc.card?.Id === capaId
@@ -224,7 +237,7 @@ function DecksPage() {
                   <span className="deck-format" style={{ color: corPrimaria, borderColor: corPrimaria }}>
                     {deck.configuration?.formato || 'TCG'}
                   </span>
-                  <span className="deck-cards-count">{`${cartasCount}/60`}</span>
+                  <span className="deck-cards-count">{`${cartasCount}/90`}</span>
                 </div>
               </div>
             </Link>

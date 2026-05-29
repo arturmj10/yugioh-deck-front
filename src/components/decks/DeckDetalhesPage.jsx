@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useCallback } from 'react';
 import {
   getDeckById,
+  atualizarDeck,
+  deletarDeck,
   adicionarCartaAoDeck,
   removerUnidadeCartaDoDeck,
-  buscarCartasDoCatalogo,
+  buscarCartasComFiltros,
 } from '../../services/deckService';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import './DeckDetalhes.css';
 
 // Helper: Converte URL de imagem normal para thumbnail (API do YGOProDeck)
@@ -43,16 +46,62 @@ function DeckDetalhesPage() {
   const [limiteExibicao, setLimiteExibicao] = useState(30);
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   
+  // Modal de edição do deck
+  const [modalEdicao, setModalEdicao]   = useState(false);
+  const [dadosEdicao, setDadosEdicao]   = useState({ nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3' });
+  const [confirmExcluir, setConfirmExcluir] = useState(false);
+
+  const CORES_DISPONIVEIS = [
+    { nome: 'Azul',   hex: '#0028B3' },
+    { nome: 'Luz',    hex: '#f1c40f' },
+    { nome: 'Fogo',   hex: '#e74c3c' },
+    { nome: 'Água',   hex: '#3498db' },
+    { nome: 'Vento',  hex: '#2ecc71' },
+    { nome: 'Terra',  hex: '#a0522d' },
+    { nome: 'Divino', hex: '#ff8c00' },
+  ];
+
+  const abrirEdicao = () => {
+    setDadosEdicao({
+      nome:      deck.nome,
+      descricao: deck.descricao || '',
+      formato:   deck.configuration?.formato || 'TCG',
+      corTema:   deck.configuration?.corTema || '#0028B3',
+    });
+    setModalEdicao(true);
+  };
+
+  const salvarEdicao = async (e) => {
+    e.preventDefault();
+    try {
+      await atualizarDeck({
+        id,
+        nome:      dadosEdicao.nome,
+        descricao: dadosEdicao.descricao,
+        configuration: { formato: dadosEdicao.formato, corTema: dadosEdicao.corTema },
+      }, token);
+      toast.success('Deck atualizado!');
+      setModalEdicao(false);
+      carregarDetalhes();
+    } catch (error) {
+      handleServiceError(error, 'Erro ao atualizar deck.');
+    }
+  };
+
+  const confirmarExclusao = async () => {
+    try {
+      await deletarDeck(id, token);
+      toast.info('Deck removido.');
+      navigate('/decks', { replace: true });
+    } catch (error) {
+      handleServiceError(error, 'Erro ao excluir deck.');
+    }
+  };
+
   // Modais e Drag and Drop
   const [cartaEmDestaque, setCartaEmDestaque] = useState(null);
   const [draggedCard, setDraggedCard]         = useState(null);
   const [dragOverZone, setDragOverZone]       = useState(null); // 'Main', 'Extra', 'Side'
-
-  // Filtros avançados
-  const [filtros, setFiltros] = useState({
-    tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos',
-    level: 'Todos', atkMin: '', atkMax: '', defMin: '', defMax: '',
-  });
 
   const handleServiceError = useCallback((error, fallbackMsg) => {
     if (error.message === 'SESSION_EXPIRED') {
@@ -80,28 +129,25 @@ function DeckDetalhesPage() {
 
   useEffect(() => { carregarDetalhes(); }, [carregarDetalhes]);
 
-  // Busca do catálogo com debounce
+  // Busca com debounce
   useEffect(() => {
-    if (!inputTexto.trim()) {
-      setCatalogoGlobal([]);
-      return;
-    }
     let mounted = true;
+    const delay = inputTexto.trim() ? 400 : 0;
     const timer = setTimeout(async () => {
       try {
         setCarregandoCatalogo(true);
-        const dados = await buscarCartasDoCatalogo(inputTexto.trim(), token);
+        const dados = await buscarCartasComFiltros(inputTexto, { tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos', level: 'Todos' });
         if (mounted) setCatalogoGlobal(dados);
       } catch (error) {
         if (mounted) handleServiceError(error, 'Erro ao buscar cartas.');
       } finally {
         if (mounted) setCarregandoCatalogo(false);
       }
-    }, 400);
+    }, delay);
     return () => { mounted = false; clearTimeout(timer); };
-  }, [inputTexto, token, handleServiceError]);
+  }, [inputTexto, handleServiceError]);
 
-  useEffect(() => { setLimiteExibicao(30); }, [inputTexto, filtros]);
+  useEffect(() => { setLimiteExibicao(30); }, [inputTexto]);
 
   // ── Ações de Deck ──────────────────────────────────────────────────────────
   const handleAdicionar = async (cardId, slot = 'Main') => {
@@ -187,11 +233,13 @@ function DeckDetalhesPage() {
   // Filtragem do catálogo
   const cartasFiltradas = catalogoGlobal.filter(card => {
     const raw = card.raw || {};
-    const tipo = (card.type || raw.type || raw.Type || '').toString();
+    const tipo      = (card.type || raw.type || raw.Type || '').toString();
     const attribute = (card.attribute || raw.attribute || raw.Attribute || '').toString();
-    const race = (raw.race || raw.Race || '').toString();
-    const level = card.level ?? raw.level ?? raw.Level ?? null;
-    const nome = (card.nome || card.name || raw.name || raw.Name || '').toString().toLowerCase();
+    const race      = (raw.race || raw.Race || '').toString();
+    const level     = card.level ?? raw.level ?? raw.Level ?? null;
+    const atk       = raw.atk ?? raw.Atk ?? null;
+    const def       = raw.def ?? raw.Def ?? null;
+    const nome      = (card.nome || card.name || raw.name || raw.Name || '').toString().toLowerCase();
 
     const bateTexto = inputTexto ? nome.includes(inputTexto.trim().toLowerCase()) : true;
     let bateTipoPrincipal = true;
@@ -199,11 +247,17 @@ function DeckDetalhesPage() {
     else if (filtros.tipoPrincipal === 'Armadilhas') bateTipoPrincipal = /Trap Card/i.test(tipo);
     else if (filtros.tipoPrincipal === 'Monstros') bateTipoPrincipal = !/Spell|Trap/i.test(tipo);
 
-    return bateTexto && bateTipoPrincipal 
-      && (filtros.subTipo === 'Todos' || tipo.toLowerCase().includes(filtros.subTipo.toLowerCase()))
-      && (filtros.race === 'Todos' || race.toLowerCase() === filtros.race.toLowerCase())
+    const bateAtk = (filtros.atkMin === '' || (atk !== null && atk >= Number(filtros.atkMin)))
+                 && (filtros.atkMax === '' || (atk !== null && atk <= Number(filtros.atkMax)));
+    const bateDef = (filtros.defMin === '' || (def !== null && def >= Number(filtros.defMin)))
+                 && (filtros.defMax === '' || (def !== null && def <= Number(filtros.defMax)));
+
+    return bateTexto && bateTipoPrincipal
+      && (filtros.subTipo  === 'Todos' || tipo.toLowerCase().includes(filtros.subTipo.toLowerCase()))
+      && (filtros.race     === 'Todos' || race.toLowerCase() === filtros.race.toLowerCase())
       && (filtros.atributo === 'Todos' || attribute === filtros.atributo)
-      && (filtros.level === 'Todos' || (level !== null && level.toString() === filtros.level));
+      && (filtros.level    === 'Todos' || (level !== null && level.toString() === filtros.level))
+      && bateAtk && bateDef;
   });
 
   const cartasParaExibir = cartasFiltradas.slice(0, limiteExibicao);
@@ -225,8 +279,11 @@ function DeckDetalhesPage() {
           <h1>{deck.nome}</h1>
           <div className="deck-badges">
             <span className="badge-format" style={{ backgroundColor: corTema }}>{deck.configuration?.formato}</span>
-            <span className="badge-count">{`${totalCards}/60`}</span>
           </div>
+        </div>
+        <div className="deck-header-actions">
+          <button className="btn-edit-deck" onClick={abrirEdicao} title="Editar deck">✎ Editar</button>
+          <button className="btn-delete-deck" onClick={() => setConfirmExcluir(true)} title="Excluir deck">🗑 Excluir</button>
         </div>
       </header>
 
@@ -247,18 +304,121 @@ function DeckDetalhesPage() {
             />
           </div>
 
-          <div className="filter-panel" style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <select value={filtros.tipoPrincipal} onChange={(e) => setFiltros({ ...filtros, tipoPrincipal: e.target.value, subTipo: 'Todos' })}>
-              <option value="Todos">Todas as Cartas</option><option value="Monstros">Monstros</option>
-              <option value="Magias">Magias</option><option value="Armadilhas">Armadilhas</option>
-            </select>
-            <button onClick={() => setFiltros({
-              tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos',
-              level: 'Todos', atkMin: '', atkMax: '', defMin: '', defMax: '',
-            })}>Limpar Filtros</button>
-            <span style={{ fontSize: '0.75rem', color: '#888', alignSelf: 'center', marginLeft: 'auto' }}>
-              Dica: Arraste a carta ou clique com Esquerdo para adicionar.
-            </span>
+          <div className="filter-panel">
+            {/* Linha 1: tipo / subtipo / atributo / limpar */}
+            <div className="filter-row">
+              <select value={filtros.tipoPrincipal} onChange={(e) => setFiltros({ ...filtros, tipoPrincipal: e.target.value, subTipo: 'Todos' })}>
+                <option value="Todos">Todos os Tipos</option>
+                <option value="Monstros">Monstros</option>
+                <option value="Magias">Magias</option>
+                <option value="Armadilhas">Armadilhas</option>
+              </select>
+
+              {filtros.tipoPrincipal === 'Monstros' && (
+                <select value={filtros.subTipo} onChange={(e) => setFiltros({ ...filtros, subTipo: e.target.value })}>
+                  <option value="Todos">Todos os Subtipos</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Effect">Efeito</option>
+                  <option value="Ritual">Ritual</option>
+                  <option value="Fusion">Fusão</option>
+                  <option value="Synchro">Sincro</option>
+                  <option value="XYZ">XYZ</option>
+                  <option value="Link">Link</option>
+                  <option value="Pendulum">Pêndulo</option>
+                </select>
+              )}
+
+              {filtros.tipoPrincipal === 'Magias' && (
+                <select value={filtros.subTipo} onChange={(e) => setFiltros({ ...filtros, subTipo: e.target.value })}>
+                  <option value="Todos">Todos os Subtipos</option>
+                  <option value="Normal Spell">Normal</option>
+                  <option value="Continuous Spell">Contínua</option>
+                  <option value="Field Spell">Campo</option>
+                  <option value="Equip Spell">Equipamento</option>
+                  <option value="Quick-Play Spell">Jogo Rápido</option>
+                  <option value="Ritual Spell">Ritual</option>
+                </select>
+              )}
+
+              {filtros.tipoPrincipal === 'Armadilhas' && (
+                <select value={filtros.subTipo} onChange={(e) => setFiltros({ ...filtros, subTipo: e.target.value })}>
+                  <option value="Todos">Todos os Subtipos</option>
+                  <option value="Normal Trap">Normal</option>
+                  <option value="Continuous Trap">Contínua</option>
+                  <option value="Counter Trap">Contadora</option>
+                </select>
+              )}
+
+              {filtros.tipoPrincipal === 'Monstros' && (
+                <select value={filtros.atributo} onChange={(e) => setFiltros({ ...filtros, atributo: e.target.value })}>
+                  <option value="Todos">Todos os Atributos</option>
+                  <option value="DARK">DARK</option>
+                  <option value="LIGHT">LIGHT</option>
+                  <option value="WATER">WATER</option>
+                  <option value="FIRE">FIRE</option>
+                  <option value="EARTH">EARTH</option>
+                  <option value="WIND">WIND</option>
+                  <option value="DIVINE">DIVINE</option>
+                </select>
+              )}
+
+              <button className="btn-clear-filters" onClick={() => setFiltros({
+                tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos',
+                level: 'Todos', atkMin: '', atkMax: '', defMin: '', defMax: '',
+              })}>✕ Limpar</button>
+            </div>
+
+            {/* Linha 2: raça / nível / ATK / DEF — só para monstros */}
+            {filtros.tipoPrincipal === 'Monstros' && (
+              <div className="filter-row filter-row-monster">
+                <select value={filtros.race} onChange={(e) => setFiltros({ ...filtros, race: e.target.value })}>
+                  <option value="Todos">Todos os Tipos de Monstro</option>
+                  <option value="Aqua">Aqua</option>
+                  <option value="Beast">Besta</option>
+                  <option value="Beast-Warrior">Besta-Guerreira</option>
+                  <option value="Cyberse">Cyberse</option>
+                  <option value="Dinosaur">Dinossauro</option>
+                  <option value="Dragon">Dragão</option>
+                  <option value="Fairy">Fada</option>
+                  <option value="Fiend">Demônio</option>
+                  <option value="Fish">Peixe</option>
+                  <option value="Insect">Inseto</option>
+                  <option value="Machine">Máquina</option>
+                  <option value="Plant">Planta</option>
+                  <option value="Psychic">Psíquico</option>
+                  <option value="Pyro">Piro</option>
+                  <option value="Reptile">Réptil</option>
+                  <option value="Rock">Rocha</option>
+                  <option value="Sea Serpent">Serpente do Mar</option>
+                  <option value="Spellcaster">Mago</option>
+                  <option value="Thunder">Trovão</option>
+                  <option value="Warrior">Guerreiro</option>
+                  <option value="Winged Beast">Besta Alada</option>
+                  <option value="Zombie">Zumbi</option>
+                </select>
+
+                <select value={filtros.level} onChange={(e) => setFiltros({ ...filtros, level: e.target.value })}>
+                  <option value="Todos">Todos os Níveis</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+
+                <div className="filter-range">
+                  <span>ATK</span>
+                  <input type="number" placeholder="Mín" min="0" value={filtros.atkMin} onChange={(e) => setFiltros({ ...filtros, atkMin: e.target.value })} />
+                  <span>–</span>
+                  <input type="number" placeholder="Máx" min="0" value={filtros.atkMax} onChange={(e) => setFiltros({ ...filtros, atkMax: e.target.value })} />
+                </div>
+
+                <div className="filter-range">
+                  <span>DEF</span>
+                  <input type="number" placeholder="Mín" min="0" value={filtros.defMin} onChange={(e) => setFiltros({ ...filtros, defMin: e.target.value })} />
+                  <span>–</span>
+                  <input type="number" placeholder="Máx" min="0" value={filtros.defMax} onChange={(e) => setFiltros({ ...filtros, defMax: e.target.value })} />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="catalog-results">
@@ -479,6 +639,74 @@ function DeckDetalhesPage() {
           </div>
         </div>
       )}
+      {/* MODAL DE EDIÇÃO */}
+      {modalEdicao && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Editar Deck</h2>
+            <form onSubmit={salvarEdicao}>
+              <div className="form-group">
+                <label>Nome do Deck</label>
+                <input
+                  type="text"
+                  required
+                  maxLength="30"
+                  value={dadosEdicao.nome}
+                  onChange={(e) => setDadosEdicao({ ...dadosEdicao, nome: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Descrição</label>
+                <textarea
+                  rows="3"
+                  value={dadosEdicao.descricao}
+                  onChange={(e) => setDadosEdicao({ ...dadosEdicao, descricao: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Formato</label>
+                <select
+                  className="form-select"
+                  value={dadosEdicao.formato}
+                  onChange={(e) => setDadosEdicao({ ...dadosEdicao, formato: e.target.value })}
+                >
+                  <option value="TCG">TCG</option>
+                  <option value="OCG">OCG</option>
+                  <option value="GOAT">Goat Format</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Cor do Tema</label>
+                <div className="color-options">
+                  {CORES_DISPONIVEIS.map((cor) => (
+                    <button
+                      key={cor.hex}
+                      type="button"
+                      title={cor.nome}
+                      className={`color-dot ${dadosEdicao.corTema === cor.hex ? 'active' : ''}`}
+                      style={{ backgroundColor: cor.hex }}
+                      onClick={() => setDadosEdicao({ ...dadosEdicao, corTema: cor.hex })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setModalEdicao(false)} className="btn-cancel">Cancelar</button>
+                <button type="submit" className="btn-save">Salvar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAÇÃO DE EXCLUSÃO */}
+      <ConfirmDialog
+        isOpen={confirmExcluir}
+        onClose={() => setConfirmExcluir(false)}
+        onConfirm={confirmarExclusao}
+        title="Excluir Deck"
+        message="Deseja deletar este deck permanentemente? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 }

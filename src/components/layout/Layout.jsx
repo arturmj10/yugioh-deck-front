@@ -18,7 +18,7 @@ function Layout() {
         </Link>
         <div className="user-profile">
           <button className="btn-theme-toggle" onClick={toggleTheme} title="Alternar tema">
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? '🌚' : '☀️'}
           </button>
           <span className="user-name">{userName}</span>
           <div className="avatar" title={userName}>{userInitial}</div>
