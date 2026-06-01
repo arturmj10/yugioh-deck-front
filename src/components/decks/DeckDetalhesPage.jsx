@@ -1,6 +1,6 @@
 // src/components/decks/DeckDetalhesPage.jsx
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getDeckById,
   atualizarDeck,
@@ -103,19 +103,36 @@ function DeckDetalhesPage() {
   const [draggedCard, setDraggedCard]         = useState(null);
   const [dragOverZone, setDragOverZone]       = useState(null); // 'Main', 'Extra', 'Side'
 
-  const handleServiceError = useCallback((error, fallbackMsg) => {
+
+  const [filtros, setFiltros] = useState({
+    tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos',
+    level: 'Todos', atkMin: '', atkMax: '', defMin: '', defMax: '',
+  });
+
+  // Ref estável para o handler de erros — nunca muda de referência,
+  // portanto não precisa entrar em nenhum array de dependências.
+  const logoutRef = useRef(logout);
+  useEffect(() => { logoutRef.current = logout; }, [logout]);
+
+const handleServiceError = useCallback((error, fallbackMsg) => {
     if (error.message === 'SESSION_EXPIRED') {
       toast.error('Sessão expirada. Faça login novamente.');
-      logout();
+      logoutRef.current();
     } else {
       toast.error(error.message || fallbackMsg);
     }
-  }, [logout]);
+  }, []); // sem dependências — usa ref internamente
 
+  // Ref que guarda sempre o token mais recente sem criar um novo callback
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+
+  // carregarDetalhes usa refs para evitar ser recriado a cada mudança de token
   const carregarDetalhes = useCallback(async () => {
-    if (!token) return;
+    const currentToken = tokenRef.current;
+    if (!currentToken) return;
     try {
-      const dados = await getDeckById(id, token);
+      const dados = await getDeckById(id, currentToken);
       setDeck(dados);
       setErroCarregamento(null);
     } catch (error) {
@@ -125,9 +142,20 @@ function DeckDetalhesPage() {
       setErroCarregamento(msg);
       handleServiceError(error, 'Erro ao carregar deck.');
     }
-  }, [id, token, handleServiceError]);
+  }, [id, handleServiceError]); // token via ref — não precisa ser dependência
 
-  useEffect(() => { carregarDetalhes(); }, [carregarDetalhes]);
+  // Guard para disparar carregarDetalhes apenas uma vez quando o token chega
+  const hasLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!token || hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
+    carregarDetalhes();
+  }, [token, carregarDetalhes]);
+
+  // Reseta o guard ao trocar de deck (id muda)
+  useEffect(() => {
+    hasLoadedRef.current = false;
+  }, [id]);
 
   // Busca com debounce
   useEffect(() => {
@@ -137,6 +165,7 @@ function DeckDetalhesPage() {
       try {
         setCarregandoCatalogo(true);
         const dados = await buscarCartasComFiltros(inputTexto, { tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos', level: 'Todos' });
+
         if (mounted) setCatalogoGlobal(dados);
       } catch (error) {
         if (mounted) handleServiceError(error, 'Erro ao buscar cartas.');
@@ -145,6 +174,7 @@ function DeckDetalhesPage() {
       }
     }, delay);
     return () => { mounted = false; clearTimeout(timer); };
+
   }, [inputTexto, handleServiceError]);
 
   useEffect(() => { setLimiteExibicao(30); }, [inputTexto]);
@@ -152,8 +182,7 @@ function DeckDetalhesPage() {
   // ── Ações de Deck ──────────────────────────────────────────────────────────
   const handleAdicionar = async (cardId, slot = 'Main') => {
     try {
-      await adicionarCartaAoDeck(deck.id, cardId, slot, 1, token);
-      // Não exibe toast a cada clique para não floodar a tela, só atualiza state
+      await adicionarCartaAoDeck(deck.id, cardId, slot, 1, tokenRef.current);
       await carregarDetalhes();
     } catch (error) {
       handleServiceError(error, 'Erro ao adicionar carta.');
@@ -163,7 +192,7 @@ function DeckDetalhesPage() {
   const handleRemover = async (e, cardId, slot = 'Main') => {
     e.preventDefault(); // Evita menu de contexto nativo
     try {
-      await removerUnidadeCartaDoDeck(deck.id, cardId, slot, token);
+      await removerUnidadeCartaDoDeck(deck.id, cardId, slot, tokenRef.current);
       await carregarDetalhes();
     } catch (error) {
       handleServiceError(error, 'Erro ao remover carta.');
@@ -188,20 +217,29 @@ function DeckDetalhesPage() {
     setDragOverZone(null);
     if (!draggedCard) return;
 
-    if (draggedCard.sourceSlot) {
-      if (draggedCard.sourceSlot !== targetZone) {
+    const currentCard = draggedCard;
+    setDraggedCard(null);
+
+    if (currentCard.sourceSlot) {
+      // Mover entre zonas do deck: faz remove + add e recarrega UMA única vez
+      if (currentCard.sourceSlot !== targetZone) {
         try {
-          await removerUnidadeCartaDoDeck(deck.id, draggedCard.cardId, draggedCard.sourceSlot, token);
-          await handleAdicionar(draggedCard.cardId, targetZone);
+          await removerUnidadeCartaDoDeck(deck.id, currentCard.cardId, currentCard.sourceSlot, tokenRef.current);
+          await adicionarCartaAoDeck(deck.id, currentCard.cardId, targetZone, 1, tokenRef.current);
+          await carregarDetalhes(); // único reload
         } catch (error) {
           handleServiceError(error, 'Erro ao mover carta.');
         }
       }
     } else {
-      // From Catalog
-      await handleAdicionar(draggedCard.cardId, targetZone);
+      // Adicionar do catálogo para uma zona
+      try {
+        await adicionarCartaAoDeck(deck.id, currentCard.cardId, targetZone, 1, tokenRef.current);
+        await carregarDetalhes(); // único reload
+      } catch (error) {
+        handleServiceError(error, 'Erro ao adicionar carta.');
+      }
     }
-    setDraggedCard(null);
   };
 
   const onDropCatalog = async (e) => {
@@ -209,13 +247,15 @@ function DeckDetalhesPage() {
     setDragOverZone(null);
     if (!draggedCard || !draggedCard.sourceSlot) return; // Se sourceSlot existir, veio do deck
 
+    const currentCard = draggedCard;
+    setDraggedCard(null);
+
     try {
-      await removerUnidadeCartaDoDeck(deck.id, draggedCard.cardId, draggedCard.sourceSlot, token);
+      await removerUnidadeCartaDoDeck(deck.id, currentCard.cardId, currentCard.sourceSlot, tokenRef.current);
       await carregarDetalhes();
     } catch (error) {
       handleServiceError(error, 'Erro ao remover carta.');
     }
-    setDraggedCard(null);
   };
 
   if (erroCarregamento) return (
