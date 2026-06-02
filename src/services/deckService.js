@@ -39,64 +39,70 @@ const mapCards = (data) => (data || []).map(c => ({
   raw:    c,
 }));
 
-const fetchByType = async (type, fname) => {
-  const params = new URLSearchParams({ language: 'pt', type });
+const PAGE_SIZE = 30;
+
+const fetchByType = async (type, fname, offset = 0) => {
+  const params = new URLSearchParams({ language: 'pt', type, num: PAGE_SIZE, offset });
   if (fname) params.set('fname', fname);
   const res = await fetch(`${YGOPRO_API}?${params}`);
-  if (res.status === 400 || res.status === 404) return [];
+  if (res.status === 400 || res.status === 404) return { cards: [], hasMore: false };
   const json = await res.json();
-  return mapCards(json.data);
+  const cards = mapCards(json.data);
+  return { cards, hasMore: cards.length === PAGE_SIZE };
 };
 
 // Busca cartas diretamente na API pública do YGOProDeck usando filtros reais.
 // Não requer autenticação — é uma API pública.
-export const buscarCartasComFiltros = async (texto, filtros) => {
+// Retorna { cards, hasMore } para suportar paginação.
+export const buscarCartasComFiltros = async (texto, filtros, offset = 0) => {
   const { tipoPrincipal, subTipo, race, atributo, level } = filtros;
   const term = texto.trim();
 
+  if (!term) return { cards: [], hasMore: false };
+
   // Subtipo específico → uma única chamada com type=...
   if (subTipo !== 'Todos' && subTipo !== 'Pendulum') {
-    return fetchByType(SUBTIPO_PARA_TIPO_API[subTipo], term);
+    return fetchByType(SUBTIPO_PARA_TIPO_API[subTipo], term, offset);
   }
 
-  // Pêndulo → sem type único, usa busca por nome
+  // Pêndulo → sem type único, usa busca por nome (sem paginação parcial confiável)
   if (subTipo === 'Pendulum') {
-    return fetchByType('Pendulum Effect Monster', term)
-      .then(async (effect) => {
-        const normal = await fetchByType('Pendulum Normal Monster', term);
-        return [...effect, ...normal];
-      });
+    const [effect, normal] = await Promise.all([
+      fetchByType('Pendulum Effect Monster', term, offset),
+      fetchByType('Pendulum Normal Monster', term, offset),
+    ]);
+    return {
+      cards: [...effect.cards, ...normal.cards],
+      hasMore: effect.hasMore || normal.hasMore,
+    };
   }
 
   // Magias sem subtipo → busca todos os tipos em paralelo
   if (tipoPrincipal === 'Magias') {
-    const results = await Promise.all(SPELL_TYPES.map(t => fetchByType(t, term)));
-    return results.flat();
+    const results = await Promise.all(SPELL_TYPES.map(t => fetchByType(t, term, offset)));
+    return { cards: results.flatMap(r => r.cards), hasMore: results.some(r => r.hasMore) };
   }
 
   // Armadilhas sem subtipo → busca todos os tipos em paralelo
   if (tipoPrincipal === 'Armadilhas') {
-    const results = await Promise.all(TRAP_TYPES.map(t => fetchByType(t, term)));
-    return results.flat();
+    const results = await Promise.all(TRAP_TYPES.map(t => fetchByType(t, term, offset)));
+    return { cards: results.flatMap(r => r.cards), hasMore: results.some(r => r.hasMore) };
   }
 
   // Monstros e Todos → usa race / attribute / level / fname
-  const params = new URLSearchParams({ language: 'pt' });
+  const params = new URLSearchParams({ language: 'pt', num: PAGE_SIZE, offset });
   if (race     !== 'Todos') params.set('race',      race);
   if (atributo !== 'Todos') params.set('attribute', atributo);
   if (level    !== 'Todos') params.set('level',     level);
   if (term)                 params.set('fname',     term);
 
-  if (!params.has('fname') && !params.has('race') && !params.has('attribute') && !params.has('level')) {
-    params.set('fname', 'a');
-  }
-
   const res = await fetch(`${YGOPRO_API}?${params}`);
-  if (res.status === 400 || res.status === 404) return [];
+  if (res.status === 400 || res.status === 404) return { cards: [], hasMore: false };
   if (!res.ok) throw new Error('Erro ao buscar cartas na API');
 
   const json = await res.json();
-  return mapCards(json.data);
+  const cards = mapCards(json.data);
+  return { cards, hasMore: cards.length === PAGE_SIZE };
 };
 
 // Monta os headers padrão com autenticação Bearer

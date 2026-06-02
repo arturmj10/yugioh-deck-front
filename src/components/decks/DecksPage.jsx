@@ -62,8 +62,8 @@ function DecksPage() {
       const dados = await getDecks(token, nomeBusca, formatoBusca);
       setDecks(dados);
 
-      // Busca os totais de cartas em paralelo — o endpoint de lista não retorna DeckCards
-      const totais = await Promise.all(
+      // Carrega contagens em segundo plano sem bloquear a exibição dos decks
+      Promise.all(
         dados.map(d => getDeckById(d.id, token)
           .then(detalhe => ({
             id: d.id,
@@ -71,8 +71,9 @@ function DecksPage() {
           }))
           .catch(() => ({ id: d.id, total: 0 }))
         )
-      );
-      setDeckTotais(Object.fromEntries(totais.map(t => [t.id, t.total])));
+      ).then(totais => {
+        setDeckTotais(Object.fromEntries(totais.map(t => [t.id, t.total])));
+      });
     } catch (error) {
       handleServiceError(error, 'Erro ao carregar decks do banco!');
     }

@@ -43,7 +43,8 @@ function DeckDetalhesPage() {
   const [erroCarregamento, setErroCarregamento] = useState(null);
   const [inputTexto, setInputTexto]         = useState('');
   const [catalogoGlobal, setCatalogoGlobal] = useState([]);
-  const [limiteExibicao, setLimiteExibicao] = useState(30);
+  const [catalogoOffset, setCatalogoOffset] = useState(0);
+  const [catalogoHasMore, setCatalogoHasMore] = useState(false);
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   
   // Modal de edição do deck
@@ -104,11 +105,6 @@ function DeckDetalhesPage() {
   const [dragOverZone, setDragOverZone]       = useState(null); // 'Main', 'Extra', 'Side'
 
 
-  const [filtros, setFiltros] = useState({
-    tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos',
-    level: 'Todos', atkMin: '', atkMax: '', defMin: '', defMax: '',
-  });
-
   // Ref estável para o handler de erros — nunca muda de referência,
   // portanto não precisa entrar em nenhum array de dependências.
   const logoutRef = useRef(logout);
@@ -157,27 +153,49 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
     hasLoadedRef.current = false;
   }, [id]);
 
-  // Busca com debounce
+  const FILTROS_PADRAO = { tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos', level: 'Todos' };
+
+  // Busca com debounce — reseta o catálogo a cada nova pesquisa
   useEffect(() => {
+    if (!inputTexto.trim()) {
+      setCatalogoGlobal([]);
+      setCatalogoOffset(0);
+      setCatalogoHasMore(false);
+      return;
+    }
+
     let mounted = true;
-    const delay = inputTexto.trim() ? 400 : 0;
     const timer = setTimeout(async () => {
       try {
         setCarregandoCatalogo(true);
-        const dados = await buscarCartasComFiltros(inputTexto, { tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos', level: 'Todos' });
-
-        if (mounted) setCatalogoGlobal(dados);
+        const { cards, hasMore } = await buscarCartasComFiltros(inputTexto, FILTROS_PADRAO, 0);
+        if (mounted) {
+          setCatalogoGlobal(cards);
+          setCatalogoOffset(cards.length);
+          setCatalogoHasMore(hasMore);
+        }
       } catch (error) {
         if (mounted) handleServiceError(error, 'Erro ao buscar cartas.');
       } finally {
         if (mounted) setCarregandoCatalogo(false);
       }
-    }, delay);
+    }, 400);
     return () => { mounted = false; clearTimeout(timer); };
-
   }, [inputTexto, handleServiceError]);
 
-  useEffect(() => { setLimiteExibicao(30); }, [inputTexto]);
+  const carregarMaisCartas = async () => {
+    try {
+      setCarregandoCatalogo(true);
+      const { cards, hasMore } = await buscarCartasComFiltros(inputTexto, FILTROS_PADRAO, catalogoOffset);
+      setCatalogoGlobal(prev => [...prev, ...cards]);
+      setCatalogoOffset(prev => prev + cards.length);
+      setCatalogoHasMore(hasMore);
+    } catch (error) {
+      handleServiceError(error, 'Erro ao carregar mais cartas.');
+    } finally {
+      setCarregandoCatalogo(false);
+    }
+  };
 
   // ── Ações de Deck ──────────────────────────────────────────────────────────
   const handleAdicionar = async (cardId, slot = 'Main') => {
@@ -270,7 +288,7 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
   const corTema  = deck.configuration?.corTema || '#0028B3';
   const totalCards = deck.deckCards?.reduce((sum, it) => sum + (it.quantidade || 0), 0) || 0;
 
-  const cartasParaExibir = catalogoGlobal.slice(0, limiteExibicao);
+  const cartasParaExibir = catalogoGlobal;
 
   // Stacks do deck atual
   const mainCards  = stackCards(deck.deckCards?.filter(dc => (dc.slot || dc.Slot || 'Main') === 'Main') || []);
@@ -344,10 +362,10 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
               );
             })}
 
-            {catalogoGlobal.length > 0 && cartasFiltradas.length > limiteExibicao && (
+            {catalogoHasMore && (
               <div style={{ textAlign: 'center', marginTop: 8, gridColumn: '1 / -1' }}>
-                <button onClick={() => setLimiteExibicao(l => l + 30)} style={{ padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>
-                  Carregar mais...
+                <button onClick={carregarMaisCartas} disabled={carregandoCatalogo} style={{ padding: '8px 16px', borderRadius: 4, cursor: 'pointer' }}>
+                  {carregandoCatalogo ? 'Carregando...' : 'Carregar mais...'}
                 </button>
               </div>
             )}
