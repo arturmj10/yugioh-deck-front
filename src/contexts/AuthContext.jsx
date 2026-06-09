@@ -48,11 +48,27 @@ export function AuthProvider({ children }) {
     userManager.signinRedirect();
   }, []);
 
-  // Encerra a sessão: limpa a sessão local primeiro (feedback imediato),
-  // depois tenta o logout no servidor Keycloak com fallback para /login.
+  // Encerra a sessão completamente:
+  // 1. Para o silent renew ANTES de tudo — evita que o SSO cookie do Keycloak
+  //    ainda ativo reautentique o usuário silenciosamente via iframe logo após
+  //    o removeUser(), que é a causa do "desloga e loga de volta instantaneamente".
+  // 2. Captura o id_token antes de limpar (Keycloak v18+ exige id_token_hint).
+  // 3. Limpa a sessão local e redireciona ao endpoint de logout do Keycloak.
   const logout = useCallback(async () => {
+    // 1. Para o automaticSilentRenew imediatamente
+    userManager.stopSilentRenew();
+
+    // 2. Captura o id_token ANTES de remover o usuário da sessão
+    let idToken = null;
     try {
-      // 1. Remove o usuário da sessionStorage — reage imediatamente na UI
+      const currentUser = await userManager.getUser();
+      idToken = currentUser?.id_token ?? null;
+    } catch {
+      // ignora erro ao buscar usuário
+    }
+
+    // 3. Limpa a sessão local (feedback imediato na UI)
+    try {
       await userManager.removeUser();
       setUser(null);
     } catch {
@@ -60,11 +76,13 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      // 2. Redireciona para o endpoint de logout do Keycloak
-      await userManager.signoutRedirect();
+      // 4. Redireciona para o endpoint de logout do Keycloak passando id_token_hint
+      //    Isso invalida o SSO cookie do Keycloak, impedindo silent renew futuro.
+      await userManager.signoutRedirect({
+        id_token_hint: idToken,
+      });
     } catch (err) {
-      // Fallback: se o Keycloak não tiver end_session_endpoint configurado
-      // ou estiver inacessível, redireciona manualmente para /login
+      // Fallback: se o Keycloak não tiver end_session_endpoint ou estiver inacessível
       console.warn('[Auth] signoutRedirect falhou, redirecionando para /login:', err);
       window.location.href = '/login';
     }
