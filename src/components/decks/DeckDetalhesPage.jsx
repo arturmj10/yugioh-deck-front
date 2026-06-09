@@ -8,6 +8,8 @@ import {
   adicionarCartaAoDeck,
   removerUnidadeCartaDoDeck,
   buscarCartasComFiltros,
+  buscarPrecosDasCartas,
+  buscarCotacoes,
 } from '../../services/deckService';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
@@ -47,6 +49,10 @@ function DeckDetalhesPage() {
   const [catalogoHasMore, setCatalogoHasMore] = useState(false);
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   
+  // Preço total do deck
+  const [precoDeck, setPrecoDeck] = useState(null); // { total: number, cotacao: number } | null
+  const [carregandoPreco, setCarregandoPreco] = useState(false);
+
   // Modal de edição do deck
   const [modalEdicao, setModalEdicao]   = useState(false);
   const [dadosEdicao, setDadosEdicao]   = useState({ nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3', capaCardId: null });
@@ -153,6 +159,35 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
   useEffect(() => {
     hasLoadedRef.current = false;
   }, [id]);
+
+  // Calcula preço total do deck em BRL sempre que as cartas mudam
+  useEffect(() => {
+    if (!deck?.deckCards?.length) { setPrecoDeck(null); return; }
+    let mounted = true;
+    (async () => {
+      setCarregandoPreco(true);
+      try {
+        const cardIds = [...new Set(deck.deckCards.map(dc => dc.cardId))];
+        // Busca cotações primeiro para passar para o cálculo de preços
+        const cotacoes = await buscarCotacoes();
+        if (!mounted || !cotacoes) { setPrecoDeck(null); return; }
+
+        const precos = await buscarPrecosDasCartas(cardIds, cotacoes);
+        if (!mounted) return;
+
+        const totalBrl = deck.deckCards.reduce((sum, dc) => {
+          return sum + (precos[dc.cardId] || 0) * (dc.quantidade || 1);
+        }, 0);
+
+        setPrecoDeck({ total: totalBrl, cotacoes });
+      } catch {
+        if (mounted) setPrecoDeck(null);
+      } finally {
+        if (mounted) setCarregandoPreco(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [deck?.deckCards]);
 
   const FILTROS_PADRAO = { tipoPrincipal: 'Todos', subTipo: 'Todos', atributo: 'Todos', race: 'Todos', level: 'Todos' };
 
@@ -308,6 +343,14 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
           <h1>{deck.nome}</h1>
           <div className="deck-badges">
             <span className="badge-format" style={{ backgroundColor: corTema }}>{deck.configuration?.formato}</span>
+            {carregandoPreco && (
+              <span className="badge-preco badge-preco--loading">💰 Calculando...</span>
+            )}
+            {!carregandoPreco && precoDeck && (
+              <span className="badge-preco" title={`USD: R$ ${precoDeck.cotacoes.USD.toFixed(2)} | EUR: R$ ${precoDeck.cotacoes.EUR.toFixed(2)} (Cardmarket)`}>
+                💰 {precoDeck.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </span>
+            )}
           </div>
         </div>
         <div className="deck-header-actions">

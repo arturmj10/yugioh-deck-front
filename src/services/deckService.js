@@ -129,6 +129,53 @@ const handleFetchJson = async (res, errorMessage) => {
   return res.status === 204 ? null : res.json();
 };
 
+// ── Preços ───────────────────────────────────────────────────────────────────
+
+// Extrai o melhor preço disponível de um card da YGOProDeck em BRL.
+// Converte tanto Cardmarket (EUR) quanto TCGPlayer (USD) e usa o maior,
+// pois a API retorna o preço da impressão mais barata — o maior valor
+// é o mais representativo do mercado real.
+const extrairMelhorPrecoBrl = (card, cotacoes) => {
+  const cm  = parseFloat(card.card_prices?.[0]?.cardmarket_price || 0);
+  const tcg = parseFloat(card.card_prices?.[0]?.tcgplayer_price  || 0);
+  const cmBrl  = cm  > 0 && cotacoes.EUR ? cm  * cotacoes.EUR : 0;
+  const tcgBrl = tcg > 0 && cotacoes.USD ? tcg * cotacoes.USD : 0;
+  return Math.max(cmBrl, tcgBrl);
+};
+
+// Busca preços de uma lista de IDs em paralelo (uma requisição por carta)
+export const buscarPrecosDasCartas = async (cardIds, cotacoes) => {
+  if (!cardIds?.length) return {};
+  const uniqueIds = [...new Set(cardIds)];
+  const resultados = await Promise.allSettled(
+    uniqueIds.map(id =>
+      fetch(`${YGOPRO_API}?id=${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(json => ({ id, preco: json?.data?.[0] ? extrairMelhorPrecoBrl(json.data[0], cotacoes) : 0 }))
+    )
+  );
+  return Object.fromEntries(
+    resultados
+      .filter(r => r.status === 'fulfilled')
+      .map(r => [r.value.id, r.value.preco])
+  );
+};
+
+// Busca cotações USD→BRL e EUR→BRL em tempo real (AwesomeAPI — gratuita)
+export const buscarCotacoes = async () => {
+  try {
+    const res = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL');
+    if (!res.ok) return null;
+    const json = await res.json();
+    return {
+      USD: parseFloat(json.USDBRL?.bid || 0),
+      EUR: parseFloat(json.EURBRL?.bid || 0),
+    };
+  } catch {
+    return null;
+  }
+};
+
 // ── Decks ────────────────────────────────────────────────────────────────────
 
 export const getDecks = async (token, nome = '', formato = 'Todos') => {

@@ -107,6 +107,24 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
+.badge-preco {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  cursor: default;
+}
+
+.badge-preco--loading {
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border-color: var(--border-subtle);
+  animation: pulse 1.2s ease-in-out infinite alternate;
+}
+
 .badge-count {
   background: var(--bg-input);
   color: var(--text-muted);
