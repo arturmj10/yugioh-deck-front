@@ -113,8 +113,9 @@
 
 .deck-image-placeholder img {
   width: 100%;
-  height: 250px;
+  height: 200px;
   object-fit: cover;
+  object-position: center 18%;
   transition: transform 0.3s ease;
 }
 
@@ -222,7 +223,10 @@
   background: var(--bg-panel);
   padding: 30px;
   border-radius: 12px;
-  width: 400px;
+  width: 460px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
   border: 2px solid var(--primary-color);
   box-shadow: 0 0 20px var(--shadow-strong);
 }

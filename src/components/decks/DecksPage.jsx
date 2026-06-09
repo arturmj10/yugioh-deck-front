@@ -12,6 +12,7 @@ function DecksPage() {
 
   const [decks, setDecks] = useState([]);
   const [deckTotais, setDeckTotais] = useState({}); // { [deckId]: totalCartas }
+  const [deckCapas, setDeckCapas]   = useState({}); // { [deckId]: imageUrl }
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
 
@@ -62,17 +63,25 @@ function DecksPage() {
       const dados = await getDecks(token, nomeBusca, formatoBusca);
       setDecks(dados);
 
-      // Carrega contagens em segundo plano sem bloquear a exibição dos decks
+      // Carrega contagens e capas em segundo plano sem bloquear a exibição dos decks
       Promise.all(
         dados.map(d => getDeckById(d.id, token)
-          .then(detalhe => ({
-            id: d.id,
-            total: detalhe.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0,
-          }))
-          .catch(() => ({ id: d.id, total: 0 }))
+          .then(detalhe => {
+            const total = detalhe.deckCards?.reduce((s, c) => s + (c.quantidade || 0), 0) || 0;
+            const capaId = detalhe.configuration?.capaCardId;
+            const capaCard = capaId
+              ? detalhe.deckCards?.find(dc => dc.cardId === capaId)
+              : null;
+            const capaImg = capaCard?.card?.imageUrl
+              || capaCard?.card?.ImageUrl
+              || null;
+            return { id: d.id, total, capaImg };
+          })
+          .catch(() => ({ id: d.id, total: 0, capaImg: null }))
         )
-      ).then(totais => {
-        setDeckTotais(Object.fromEntries(totais.map(t => [t.id, t.total])));
+      ).then(resultados => {
+        setDeckTotais(Object.fromEntries(resultados.map(r => [r.id, r.total])));
+        setDeckCapas(Object.fromEntries(resultados.map(r => [r.id, r.capaImg])));
       });
     } catch (error) {
       handleServiceError(error, 'Erro ao carregar decks do banco!');
@@ -198,13 +207,7 @@ function DecksPage() {
           const corPrimaria = deck.configuration?.corTema || '#333';
           const hueOffset = getHueFromColor(corPrimaria);
           const cartasCount = deckTotais[deck.id] ?? 0;
-          const capaId = deck.configuration?.capaCardId;
-          const capaCard = deck.deckCards?.find(
-            dc => dc.cardId === capaId || dc.card?.id === capaId || dc.card?.Id === capaId
-          );
-          const capaImg = capaCard?.card?.imageUrl
-            || capaCard?.card?.ImageUrl
-            || capaCard?.card?.imagem
+          const capaImg = deckCapas[deck.id]
             || 'https://images.ygoprodeck.com/images/cards/back_high.jpg';
 
           return (

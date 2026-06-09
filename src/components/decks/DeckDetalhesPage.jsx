@@ -49,7 +49,7 @@ function DeckDetalhesPage() {
   
   // Modal de edição do deck
   const [modalEdicao, setModalEdicao]   = useState(false);
-  const [dadosEdicao, setDadosEdicao]   = useState({ nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3' });
+  const [dadosEdicao, setDadosEdicao]   = useState({ nome: '', descricao: '', formato: 'TCG', corTema: '#0028B3', capaCardId: null });
   const [confirmExcluir, setConfirmExcluir] = useState(false);
 
   const CORES_DISPONIVEIS = [
@@ -64,10 +64,11 @@ function DeckDetalhesPage() {
 
   const abrirEdicao = () => {
     setDadosEdicao({
-      nome:      deck.nome,
-      descricao: deck.descricao || '',
-      formato:   deck.configuration?.formato || 'TCG',
-      corTema:   deck.configuration?.corTema || '#0028B3',
+      nome:       deck.nome,
+      descricao:  deck.descricao || '',
+      formato:    deck.configuration?.formato || 'TCG',
+      corTema:    deck.configuration?.corTema || '#0028B3',
+      capaCardId: deck.configuration?.capaCardId || null,
     });
     setModalEdicao(true);
   };
@@ -79,7 +80,7 @@ function DeckDetalhesPage() {
         id,
         nome:      dadosEdicao.nome,
         descricao: dadosEdicao.descricao,
-        configuration: { formato: dadosEdicao.formato, corTema: dadosEdicao.corTema },
+        configuration: { formato: dadosEdicao.formato, corTema: dadosEdicao.corTema, capaCardId: dadosEdicao.capaCardId },
       }, token);
       toast.success('Deck atualizado!');
       setModalEdicao(false);
@@ -601,6 +602,34 @@ const handleServiceError = useCallback((error, fallbackMsg) => {
                   ))}
                 </div>
               </div>
+              <div className="form-group">
+                <label>Capa do Deck</label>
+                {deck.deckCards?.length > 0 ? (
+                  <div className="capa-picker">
+                    {stackCards(deck.deckCards).map(item => {
+                      const thumbUrl = getSmallImageUrl(item.card?.imageUrl || item.card?.ImageUrl, item.cardId);
+                      const selecionada = dadosEdicao.capaCardId === item.cardId;
+                      return (
+                        <button
+                          key={item.cardId}
+                          type="button"
+                          className={`capa-option ${selecionada ? 'capa-selecionada' : ''}`}
+                          onClick={() => setDadosEdicao(d => ({ ...d, capaCardId: selecionada ? null : item.cardId }))}
+                          title={item.card?.name || item.cardId}
+                        >
+                          <img src={thumbUrl} alt={item.card?.name} />
+                          {selecionada && <span className="capa-check">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Adicione cartas ao deck para escolher uma capa.
+                  </p>
+                )}
+              </div>
+
               <div className="modal-actions">
                 <button type="button" onClick={() => setModalEdicao(false)} className="btn-cancel">Cancelar</button>
                 <button type="submit" className="btn-save">Salvar</button>
